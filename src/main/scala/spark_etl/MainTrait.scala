@@ -4,6 +4,8 @@ import org.apache.spark.sql._
 import org.rogach.scallop._
 import spark_etl.model.Transform
 
+import scala.collection.JavaConverters._
+
 trait MainTrait {
   sealed trait CliCommand
   object ValidateConf extends CliCommand
@@ -37,30 +39,31 @@ trait MainTrait {
       builder.getOrCreate
     }
 
+    val env = Map(System.getenv.asScala.toList:_*)
     val conf = new CliConf(args)
     conf.command() match {
       case ValidateConf =>
-        MainUtils.validateConf(conf.confUri())
+        MainUtils.validateConf(conf.confUri(), env)
       case ValidateExtractPaths =>
-        MainUtils.validateExtractPaths(conf.confUri())
+        MainUtils.validateExtractPaths(conf.confUri(), env)
       case Transform =>
         implicit val spark = createSpark(className, conf.extraProps)
         try {
-          MainUtils.transform(conf.confUri(), conf.extraProps, sink)
+          MainUtils.transform(conf.confUri(), env, conf.extraProps, sink)
         } finally {
           spark.stop()
         }
       case ExtractCheck =>
         implicit val spark = createSpark(className, conf.extraProps)
         try {
-          MainUtils.extractCheck(conf.confUri())
+          MainUtils.extractCheck(conf.confUri(), env)
         } finally {
           spark.stop()
         }
       case TransformCheck =>
         implicit val spark = createSpark(className, conf.extraProps)
         try {
-          MainUtils.transformCheck(conf.confUri())
+          MainUtils.transformCheck(conf.confUri(), env)
         } finally {
           spark.stop()
         }

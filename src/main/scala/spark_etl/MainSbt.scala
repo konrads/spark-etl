@@ -2,6 +2,8 @@ package spark_etl
 
 import org.rogach.scallop.ScallopConf
 
+import scala.collection.JavaConverters._
+
 // For sbt purpose only
 object MainSbt extends App {
   class CliConf(args: Seq[String]) extends ScallopConf(args) {
@@ -10,5 +12,6 @@ object MainSbt extends App {
   }
 
   val conf = new CliConf(args)
-  MainUtils.validateConf(conf.confUri())
+  val env = Map(System.getenv.asScala.toList:_*)
+  MainUtils.validateConf(conf.confUri(), env)
 }

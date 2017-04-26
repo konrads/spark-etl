@@ -14,14 +14,14 @@ import scalaz._
 object MainUtils {
   val log = org.slf4j.LoggerFactory.getLogger(getClass)
 
-  def validateConf(confUri: String): Unit =
-    withCtx(confUri)(_ => log.info("Config validated").successNel[ConfigError])
+  def validateConf(confUri: String, env: Map[String, String]): Unit =
+    withCtx(confUri, env)(_ => log.info("Config validated").successNel[ConfigError])
 
-  def validateExtractPaths(confUri: String): Unit =
-    withCtx(confUri)(ctx => validateExtracts(ctx.allExtracts))
+  def validateExtractPaths(confUri: String, env: Map[String, String]): Unit =
+    withCtx(confUri, env)(ctx => validateExtracts(ctx.allExtracts))
 
-  def transform(confUri: String, props: Map[String, String], sink: (Map[String, String], Seq[(Transform, DataFrame)]) => Unit)(implicit spark: SparkSession): Unit =
-    withCtx(confUri) {
+  def transform(confUri: String, env: Map[String, String], props: Map[String, String], sink: (Map[String, String], Seq[(Transform, DataFrame)]) => Unit)(implicit spark: SparkSession): Unit =
+    withCtx(confUri, env) {
       ctx =>
         for {
           _ <- validateExtracts(ctx.allExtracts)
@@ -36,8 +36,8 @@ object MainUtils {
         } yield sunk
     }
 
-  def extractCheck(confUri: String)(implicit spark: SparkSession) =
-    withCtx(confUri) {
+  def extractCheck(confUri: String, env: Map[String, String])(implicit spark: SparkSession) =
+    withCtx(confUri, env) {
       ctx =>
         for {
           _ <- validateExtracts(ctx.allExtracts)
@@ -49,8 +49,8 @@ object MainUtils {
         } yield ()
     }
 
-  def transformCheck(confUri: String)(implicit spark: SparkSession) =
-    withCtx(confUri) {
+  def transformCheck(confUri: String, env: Map[String, String])(implicit spark: SparkSession) =
+    withCtx(confUri, env) {
       ctx =>
         for {
           _ <- validateExtracts(ctx.allExtracts)
@@ -63,9 +63,9 @@ object MainUtils {
         } yield ()
     }
 
-  protected def withCtx(confUri: String)(run: (RuntimeContext) => ValidationNel[ConfigError, Unit]): Unit = {
+  protected def withCtx(confUri: String, env: Map[String, String])(run: (RuntimeContext) => ValidationNel[ConfigError, Unit]): Unit = {
     val validatedCtx = for {
-      conf <- Config.load(confUri)
+      conf <- Config.load(confUri, env)
       ctx  <- RuntimeContext.load(conf)
     } yield {
       val ctxDesc =

@@ -17,10 +17,11 @@ object Config extends DefaultYamlProtocol {
   /**
     * Load Config from resource Uri
     */
-  def load(resourceUri: String): ValidationNel[ConfigError, Config] = {
+  def load(resourceUri: String, env: Map[String, String]): ValidationNel[ConfigError, Config] = {
     loadResource(resourceUri).flatMap {
       configStr =>
-        Try(configStr.parseYaml.convertTo[Config]) match {
+        val configStr2 = replaceEnv(configStr, env)
+        Try(configStr2.parseYaml.convertTo[Config]) match {
           case Success(conf) =>
             conf.successNel[ConfigError]
           case Failure(e: DeserializationException) =>
@@ -38,4 +39,9 @@ object Config extends DefaultYamlProtocol {
     else
       Source.fromURL(res).mkString.successNel[ConfigError]
   }
+
+  private def replaceEnv(s: String, env: Map[String, String]) =
+    env.foldLeft(s) {
+      case (soFar, (key, value)) => soFar.replaceAll("\\$\\{" + key + "\\}", value)
+    }
 }
