@@ -36,28 +36,29 @@ object MainUtils {
         } yield sunk
     }
 
-  def preCheck(confUri: String)(implicit spark: SparkSession) =
+  def extractCheck(confUri: String)(implicit spark: SparkSession) =
     withCtx(confUri) {
       ctx =>
         for {
           _ <- validateExtracts(ctx.allExtracts)
           _ <- loadExtracts(ctx.allExtracts)
           _ <- {
-            val runnablePreChecks = ctx.runtimeTransforms.collect { case t if t.transform.pre_check.isDefined => (t.transform.name, t.transform.pre_check.get) }
-            runAndReport("Pre-check", runnablePreChecks)
+            val runnableChecks = ctx.runtimeTransforms.flatMap(_.extracts.collect { case e if e.check.isDefined => (e.name, e.check.get) })
+            runAndReport("Extract checks", runnableChecks)
           }
         } yield ()
     }
 
-  def postCheck(confUri: String)(implicit spark: SparkSession) =
+  def transformCheck(confUri: String)(implicit spark: SparkSession) =
     withCtx(confUri) {
       ctx =>
         for {
           _ <- validateExtracts(ctx.allExtracts)
           _ <- loadExtracts(ctx.allExtracts)
+          _ <- loadTransforms(ctx.runtimeTransforms.map(_.transform))
           _ <- {
-            val runnablePostChecks = ctx.runtimeTransforms.collect { case t if t.transform.post_check.isDefined => (t.transform.name, t.transform.post_check.get) }
-            runAndReport("Post-check", runnablePostChecks)
+            val runnableChecks = ctx.runtimeTransforms.collect { case t if t.transform.check.isDefined => (t.transform.name, t.transform.check.get) }
+            runAndReport("Transform checks", runnableChecks)
           }
         } yield ()
     }
@@ -72,14 +73,14 @@ object MainUtils {
             |Loading extracts:
             |${ctx.allExtracts.map(e => s"• ${e.name} -> ${e.uri}").mkString("\n")}
             |
-            |Pre-checks:
-            |${ctx.runtimeTransforms.flatMap(t => t.transform.pre_check.map(pc => List(s"• ${t.transform.name} -> ${pc.shortDesc}")).getOrElse(Nil)).mkString("\n")}
+            |Extract-checks:
+            |${ctx.allExtracts.flatMap(e => e.check.map(pc => List(s"• ${e.name} -> ${pc.shortDesc}")).getOrElse(Nil)).mkString("\n")}
             |
             |Transforms:
             |${ctx.runtimeTransforms.map(t => s"• ${t.transform.name} -> ${t.transform.sql.shortDesc}").mkString("\n")}
             |
-            |Post-checks:
-            |${ctx.runtimeTransforms.flatMap(t => t.transform.post_check.map(pc => List(s"• ${t.transform.name} -> ${pc.shortDesc}")).getOrElse(Nil)).mkString("\n")}
+            |Transform-checks:
+            |${ctx.runtimeTransforms.flatMap(t => t.transform.check.map(pc => List(s"• ${t.transform.name} -> ${pc.shortDesc}")).getOrElse(Nil)).mkString("\n")}
            """.stripMargin
 
       log.info(ctxDesc)
@@ -97,12 +98,8 @@ object MainUtils {
   }
 
   protected def validateExtracts(extracts: Seq[Extract]): ValidationNel[ConfigError, Unit] = {
-    val parquetUris = extracts.collect { case Extract(_name, InParquet, uri) => uri}
-    val otherTypes = extracts.collect { case Extract(name, t, _uri) if t != InParquet => t }.toSet
-    if (otherTypes.nonEmpty)
-      ConfigError(s"Invalid type for non-parquet extracts: ${otherTypes.mkString(", ")}").failureNel[Unit]
-    else
-      PathValidator.validate(parquetUris:_*).map(_ => ())
+    val parquetUris = extracts.collect { case Extract(_name, InParquet, uri, _) => uri}
+    PathValidator.validate(parquetUris:_*).map(_ => ())
   }
 
   protected def loadExtracts(extracts: Seq[Extract])(implicit spark: SparkSession): ValidationNel[ConfigError, Unit] =
@@ -111,6 +108,7 @@ object MainUtils {
         e =>
           val df = e.`type` match {
             case InParquet => spark.read.parquet(e.uri)
+            case InCSV => spark.read.csv(e.uri)
             case other => throw new Exception(s"Invalid type ${e.`type`} for extract ${e.name}")
           }
           df.createOrReplaceTempView(e.name)

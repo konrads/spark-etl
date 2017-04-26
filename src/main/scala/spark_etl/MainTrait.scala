@@ -9,15 +9,15 @@ trait MainTrait {
   object ValidateConf extends CliCommand
   object ValidateExtractPaths extends CliCommand
   object Transform extends CliCommand
-  object PreCheck extends CliCommand
-  object PostCheck extends CliCommand
+  object ExtractCheck extends CliCommand
+  object TransformCheck extends CliCommand
   object CliCommand {
     implicit val cliCommandConverter = singleArgConverter[CliCommand] {
       case "validate-conf"          => ValidateConf
       case "validate-extract-paths" => ValidateExtractPaths
       case "transform"              => Transform
-      case "pre-check"              => PreCheck
-      case "post-check"             => PostCheck
+      case "extract-check"          => ExtractCheck
+      case "transform-check"        => TransformCheck
     }
   }
 
@@ -50,17 +50,17 @@ trait MainTrait {
         } finally {
           spark.stop()
         }
-      case PreCheck =>
+      case ExtractCheck =>
         implicit val spark = createSpark(className, conf.extraProps)
         try {
-          MainUtils.preCheck(conf.confUri())
+          MainUtils.extractCheck(conf.confUri())
         } finally {
           spark.stop()
         }
-      case PostCheck =>
+      case TransformCheck =>
         implicit val spark = createSpark(className, conf.extraProps)
         try {
-          MainUtils.postCheck(conf.confUri())
+          MainUtils.transformCheck(conf.confUri())
         } finally {
           spark.stop()
         }

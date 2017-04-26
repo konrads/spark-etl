@@ -27,6 +27,9 @@ object RuntimeContext extends DefaultYamlProtocol {
     * Emphasis on *maximum* validation.
     */
   def load(conf: Config): ValidationNel[ConfigError, RuntimeContext] = {
+    val validatedExtracts = conf.extracts.map(e => validateExtract(e))
+    val validatedExtracts2 = validatedExtracts.map(_.map(List(_))).reduce(_ +++ _)
+
     // get map of all extract names
     val allExtracts = conf.extracts.map(_.name.toLowerCase)
 
@@ -39,8 +42,9 @@ object RuntimeContext extends DefaultYamlProtocol {
     }
 
     val validatedTransforms = conf.transforms.map(t => validateTransform(t, byTransformDsos(t.name), conf.extracts))
-    val res = validatedTransforms.map(_.map(List(_))).reduce(_ +++ _).map(RuntimeContext(_))
-    res
+    val validatedTransforms2 = validatedTransforms.map(_.map(List(_))).reduce(_ +++ _)
+
+    (validatedExtracts2 |@| validatedTransforms2) { (_es, ts) => RuntimeContext(ts) }
   }
 
   private def loadResource(resourceUri: String): ValidationNel[ConfigError, String] = {
@@ -52,6 +56,21 @@ object RuntimeContext extends DefaultYamlProtocol {
   }
 
   /**
+    * Load & parse check, if specified
+    * Note, extract check is only dependant on the extract
+    */
+  private def validateExtract(extract: Extract): ValidationNel[ConfigError, Extract] =
+    extract.check match {
+      case Some(res) =>
+        val deps = List(extract.name.toLowerCase)
+        loadValidateResource(res)
+          .flatMap(validateResolvedDsos(deps, s"Unresolved dsos for sql of extract check  ${extract.name}"))
+          .map(_ => extract)
+      case None =>
+        extract.successNel[ConfigError]
+    }
+
+  /**
     * Load & parse sql
     * Load & parse pre_check, if specified
     * Load & parse post_check, if specified
@@ -61,15 +80,13 @@ object RuntimeContext extends DefaultYamlProtocol {
     // load resources
     val validatedSql = loadValidateResource(transform.sql)
       .flatMap(validateResolvedDsos(availableDsos, s"Unresolved dsos for sql of transform ${transform.name}"))
-    val validatedPreCheck = liftOpt(transform.pre_check)(loadValidateResource(_)
-      .flatMap(validateResolvedDsos(availableDsos, s"Unresolved dsos for pre_check transform ${transform.name}")))
-    val validatedPostCheck = liftOpt(transform.post_check)(loadValidateResource(_)
+    val validatedCheck = liftOpt(transform.check)(loadValidateResource(_)
       .flatMap(validateResolvedDsos(availableDsos, s"Unresolved dsos for post_check transform ${transform.name}")))
 
-    val runtimeTransform = (validatedSql |@| validatedPreCheck |@| validatedPostCheck) {
-      (sql, preCheck, postCheck) =>
-        val transform2 = transform.copy(sql = sql.resource, pre_check = preCheck.map(_.resource), post_check = postCheck.map(_.resource))
-        val allUsedDsos = sql.dsos ++ preCheck.map(_.dsos).getOrElse(List.empty[String]) ++ postCheck.map(_.dsos).getOrElse(List.empty[String])
+    val runtimeTransform = (validatedSql |@| validatedCheck) {
+      (sql, check) =>
+        val transform2 = transform.copy(sql = sql.resource, check = check.map(_.resource))
+        val allUsedDsos = sql.dsos ++ check.map(_.dsos).getOrElse(List.empty[String])
         val extracts = allExtracts.toSet.filter(e => allUsedDsos.contains(e.name.toLowerCase))
         val otherDsos = allUsedDsos -- extracts.map(_.name)
         RuntimeTransform(transform2, extracts, otherDsos)
