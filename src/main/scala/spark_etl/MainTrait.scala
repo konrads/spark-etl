@@ -27,7 +27,8 @@ trait MainTrait {
   class CliConf(args: Seq[String]) extends ScallopConf(args) {
     banner(s"""Usage: $className [OPTIONS] (all options required unless otherwise indicated)\n\tOptions:""")
     val extraProps = props[String]()
-    val confUri    = opt[String](name = "confUri", descr = "configuration resource uri", default = Some("/app.yaml"))
+    val confUri    = opt[String](name = "conf-uri", descr = "configuration resource uri", default = Some("/app.yaml"))
+    val count      = toggle(name = "count", descrYes = "enable transform counts")
     val command    = trailArg[CliCommand](name = "command", descr = "command")
     verify()
   }
@@ -49,7 +50,7 @@ trait MainTrait {
       case Transform =>
         implicit val spark = createSpark(className, conf.extraProps)
         try {
-          MainUtils.transform(conf.confUri(), env, conf.extraProps, sink)
+          MainUtils.transform(conf.confUri(), env, conf.extraProps, sink, conf.count())
         } finally {
           spark.stop()
         }
@@ -63,7 +64,7 @@ trait MainTrait {
       case TransformCheck =>
         implicit val spark = createSpark(className, conf.extraProps)
         try {
-          MainUtils.transformCheck(conf.confUri(), env)
+          MainUtils.transformCheck(conf.confUri(), env, conf.count())
         } finally {
           spark.stop()
         }

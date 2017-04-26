@@ -20,13 +20,14 @@ object MainUtils {
   def validateExtractPaths(confUri: String, env: Map[String, String]): Unit =
     withCtx(confUri, env)(ctx => validateExtracts(ctx.allExtracts))
 
-  def transform(confUri: String, env: Map[String, String], props: Map[String, String], sink: (Map[String, String], Seq[(Transform, DataFrame)]) => Unit)(implicit spark: SparkSession): Unit =
+  def transform(confUri: String, env: Map[String, String], props: Map[String, String], sink: (Map[String, String], Seq[(Transform, DataFrame)]) => Unit, showCounts: Boolean)(implicit spark: SparkSession): Unit =
     withCtx(confUri, env) {
       ctx =>
         for {
           _ <- validateExtracts(ctx.allExtracts)
           _ <- loadExtracts(ctx.allExtracts)
           transformed <- loadTransforms(ctx.runtimeTransforms.map(_.transform))
+          _ <- runCounts(transformed, showCounts)
           sunk <- Try {
               sink(props, transformed)
             } match {
@@ -49,13 +50,14 @@ object MainUtils {
         } yield ()
     }
 
-  def transformCheck(confUri: String, env: Map[String, String])(implicit spark: SparkSession) =
+  def transformCheck(confUri: String, env: Map[String, String], showCounts: Boolean)(implicit spark: SparkSession) =
     withCtx(confUri, env) {
       ctx =>
         for {
           _ <- validateExtracts(ctx.allExtracts)
           _ <- loadExtracts(ctx.allExtracts)
-          _ <- loadTransforms(ctx.runtimeTransforms.map(_.transform))
+          transformed <- loadTransforms(ctx.runtimeTransforms.map(_.transform))
+          _ <- runCounts(transformed, showCounts)
           _ <- {
             val runnableChecks = ctx.runtimeTransforms.collect { case t if t.transform.check.isDefined => (t.transform.name, t.transform.check.get) }
             runAndReport("Transform checks", runnableChecks)
@@ -130,6 +132,18 @@ object MainUtils {
       case scala.util.Success(res) => res.successNel[ConfigError]
       case scala.util.Failure(exc) => ConfigError("Failed to run transforms", Some(exc)).failureNel[Seq[(Transform, DataFrame)]]
     }
+
+  private def runCounts(transformsAndDfs: Seq[(Transform, DataFrame)], showCounts: Boolean): ValidationNel[ConfigError, Unit] =
+    if (! showCounts)
+      ().successNel[ConfigError]
+    else
+      Try {
+        val countDescrs = transformsAndDfs.map { case (t, df) => s"• ${t.name}: ${df.count}"}
+        log.info(s"Transform counts:\n${countDescrs.mkString("\n")}")
+      } match {
+        case scala.util.Success(_) => ().successNel[ConfigError]
+        case scala.util.Failure(exc) => ConfigError("Failed to run counts", Some(exc)).failureNel[Unit]
+      }
 
   protected def runAndReport(desc: String, transformNameAndSql: Seq[(String, Resource)])(implicit spark: SparkSession): ValidationNel[ConfigError, Unit] =
     Try {
