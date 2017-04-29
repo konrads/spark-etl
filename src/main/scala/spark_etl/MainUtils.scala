@@ -14,13 +14,15 @@ import scalaz._
 object MainUtils {
   val log = org.slf4j.LoggerFactory.getLogger(getClass)
 
+  type Sink = (Seq[(Transform, DataFrame)], SparkSession) => Unit
+
   def validateConf(confUri: String, env: Map[String, String]): Unit =
     withCtx(confUri, env)(_ => log.info("Config validated").successNel[ConfigError])
 
   def validateExtractPaths(confUri: String, env: Map[String, String]): Unit =
     withCtx(confUri, env)(ctx => validateExtracts(ctx.allExtracts))
 
-  def transform(confUri: String, env: Map[String, String], props: Map[String, String], sink: (Map[String, String], Seq[(Transform, DataFrame)]) => Unit, showCounts: Boolean)(implicit spark: SparkSession): Unit =
+  def transform(confUri: String, env: Map[String, String], props: Map[String, String], sink: Sink, showCounts: Boolean)(implicit spark: SparkSession): Unit =
     withCtx(confUri, env) {
       ctx =>
         for {
@@ -29,7 +31,7 @@ object MainUtils {
           transformed <- loadTransforms(ctx.runtimeTransforms.map(_.transform))
           _ <- runCounts(transformed, showCounts)
           sunk <- Try {
-              sink(props, transformed)
+              sink(transformed, spark)
             } match {
               case scala.util.Success(_) => ().successNel[ConfigError]
               case scala.util.Failure(e) => ConfigError("Failed to write out transform", Some(e)).failureNel[Unit]
@@ -71,17 +73,16 @@ object MainUtils {
       ctx  <- RuntimeContext.load(conf)
     } yield {
       val ctxDesc =
-        s"""|
-            |Loading extracts:
+        s"""|Validated runtime context
+            |=========================
+            |
+            |Extracts:
             |${ctx.allExtracts.map(e => s"• ${e.name} -> ${e.uri}").mkString("\n")}
-            |
-            |Extract-checks:
+            |Extract checks:
             |${ctx.allExtracts.flatMap(e => e.check.map(pc => List(s"• ${e.name} -> ${pc.shortDesc}")).getOrElse(Nil)).mkString("\n")}
-            |
             |Transforms:
             |${ctx.runtimeTransforms.map(t => s"• ${t.transform.name} -> ${t.transform.sql.shortDesc}").mkString("\n")}
-            |
-            |Transform-checks:
+            |Transform checks:
             |${ctx.runtimeTransforms.flatMap(t => t.transform.check.map(pc => List(s"• ${t.transform.name} -> ${pc.shortDesc}")).getOrElse(Nil)).mkString("\n")}
            """.stripMargin
 
@@ -93,7 +94,7 @@ object MainUtils {
       case Success(_) =>
         log.info("Success!")
       case Failure(errors) =>
-        val errorStr = errors.map(e => e.exc.map(exc => s"${e.msg}, exception: $exc\n${stacktrace(exc)}").getOrElse(e.msg)).toList.mkString("\n- ")
+        val errorStr = errors.map(e => e.exc.map(exc => s"${e.msg}, exception: $exc\n${stacktrace(exc)}").getOrElse(e.msg)).toList.mkString("\n• ")
         log.error(s"Failed due to:\n- $errorStr")
         System.exit(1)
     }
@@ -101,7 +102,11 @@ object MainUtils {
 
   protected def validateExtracts(extracts: Seq[Extract]): ValidationNel[ConfigError, Unit] = {
     val parquetUris = extracts.collect { case Extract(_name, InParquet, uri, _) => uri}
-    PathValidator.validate(parquetUris:_*).map(_ => ())
+    PathValidator.validate(parquetUris:_*).map(_ => log.info(
+      s"""|Validated extract paths
+          |=======================
+          |${extracts.map(e => s"• ${e.name} -> ${e.uri}").mkString("\n")}""".stripMargin
+    ))
   }
 
   protected def loadExtracts(extracts: Seq[Extract])(implicit spark: SparkSession): ValidationNel[ConfigError, Unit] =

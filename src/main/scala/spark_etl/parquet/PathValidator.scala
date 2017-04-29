@@ -3,7 +3,7 @@ package spark_etl.parquet
 import java.io.File
 
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.RemoteIterator
+import org.apache.hadoop.fs.{FileSystem, LocatedFileStatus, RemoteIterator}
 import spark_etl.ConfigError
 
 import scalaz.Scalaz._
@@ -20,27 +20,41 @@ object PathValidator {
           if (!fs.exists(fsPath))
             ConfigError(s"hdfs path doesn't exist: $p").failureNel[String]
           else {
-            val children = toIterator(fs.listFiles(fsPath, false)).map(_.getPath.toUri.toString)
-            if (areValid(children.toSeq))
+            val children = hdfsList(fs, fsPath)
+            if (areValid(children))
               p.successNel[ConfigError]
             else
-              ConfigError(s"Unexpected hdfs listing: ${children.mkString(", ")}").failureNel[String]
+              ConfigError(s"Unexpected hdfs children for $p: ${children.mkString(", ")} ").failureNel[String]
           }
         } else {
           val ioPath = new File(p)
           if (! ioPath.exists)
             ConfigError(s"Local path doesn't exist: $p").failureNel[String]
           else {
-            val children = ioPath.list()
-            if (areValid(children.toSeq))
+            val children = ioPath.list().toSeq
+            if (areValid(children))
               p.successNel[ConfigError]
             else
-              ConfigError(s"Unexpected local child format: ${children.mkString(", ")}").failureNel[String]
+              ConfigError(s"Unexpected local children for $p: ${children.mkString(", ")}").failureNel[String]
           }
         }
     }
     val res = validated.map(_.map(List(_))).reduce(_ +++ _)
     res
+  }
+
+  def hdfsList(fs: FileSystem, parent: org.apache.hadoop.fs.Path): Seq[String] = {
+    // as per: https://issues.apache.org/jira/browse/HDFS-7921
+    // listing recursively, including all files, then filtering distinct immediate children
+    val parentStr = parent.toUri.toString
+    toIterator(fs.listFiles(parent, true))
+      .map {
+        f =>
+          val descendant = f.getPath.toUri.toString
+          val relativeDescendant = descendant.substring(parentStr.length + 1)
+          val immediateChild = relativeDescendant.split("/").head
+          s"$parent/$immediateChild"
+      }.toSeq.distinct
   }
 
   private def toIterator[T](iter: RemoteIterator[T]) =

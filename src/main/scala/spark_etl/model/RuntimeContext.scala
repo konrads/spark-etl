@@ -36,8 +36,8 @@ object RuntimeContext extends DefaultYamlProtocol {
     // map available extracts for every transform (including extracts & transform predecessors)
     val (_, byTransformDsos) = conf.transforms.foldLeft((List.empty[String], Map.empty[String, List[String]])) {
       case ((predecessors, map), transform) =>
-        val availableDsos = allExtracts ::: predecessors
         val predecessors2 = transform.name.toLowerCase :: predecessors
+        val availableDsos = allExtracts ::: predecessors2
         (predecessors2, map + (transform.name.toLowerCase -> availableDsos))
     }
 
