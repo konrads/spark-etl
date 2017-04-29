@@ -7,9 +7,9 @@ scalaVersion := "2.11.8"
 scalacOptions ++= Seq("-deprecation", "-feature")
 
 libraryDependencies ++= {
-  lazy val sparkVsn     = "2.0.1"
-  lazy val scalazVsn    = "7.2.7"
-  lazy val scalaTestVsn = "3.0.0"
+  lazy val sparkVsn     = "2.1.0"
+  lazy val scalazVsn    = "7.2.12"
+  lazy val scalaTestVsn = "3.0.3"
   Seq(
     // core
     "org.apache.spark" %% "spark-core"        % sparkVsn     % "compile",

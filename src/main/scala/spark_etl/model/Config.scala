@@ -17,17 +17,19 @@ object Config extends DefaultYamlProtocol {
   /**
     * Load Config from resource Uri
     */
-  def load(resourceUri: String, env: Map[String, String]): ValidationNel[ConfigError, Config] = {
-    loadResource(resourceUri).flatMap {
-      configStr =>
-        val configStr2 = replaceEnv(configStr, env)
-        Try(configStr2.parseYaml.convertTo[Config]) match {
+  def load(resourceUri: String, env: Map[String, String]): ValidationNel[ConfigError, Config] =
+    loadResource(resourceUri).flatMap(parse(_, env))
+
+  def parse(configStr: String, env: Map[String, String] = Map.empty): ValidationNel[ConfigError, Config] = {
+    replaceEnv(configStr, env).flatMap {
+      case tokenReplaced =>
+        Try(tokenReplaced.parseYaml.convertTo[Config]) match {
           case Success(conf) =>
             conf.successNel[ConfigError]
           case Failure(e: DeserializationException) =>
-            ConfigError(s"Failed to deserialize config body of $resourceUri, exception: ${e.getMessage}").failureNel[Config]
+            ConfigError(s"Failed to deserialize config body, exception: ${e.getMessage}").failureNel[Config]
           case Failure(e) =>
-            ConfigError(s"Failed to parse config body of $resourceUri", Some(e)).failureNel[Config]
+            ConfigError(s"Failed to parse config body", Some(e)).failureNel[Config]
         }
     }
   }
@@ -40,8 +42,13 @@ object Config extends DefaultYamlProtocol {
       Source.fromURL(res).mkString.successNel[ConfigError]
   }
 
-  private def replaceEnv(s: String, env: Map[String, String]) =
-    env.foldLeft(s) {
+  private def replaceEnv(s: String, env: Map[String, String]): ValidationNel[ConfigError, String] = {
+    val s2 = env.foldLeft(s) {
       case (soFar, (key, value)) => soFar.replaceAll("\\$\\{" + key + "\\}", value)
     }
+    if ("""\$\{.*\}""".r.findFirstIn(s2).isDefined)
+      ConfigError("Config contains ${var} post env substitutions").failureNel[String]
+    else
+      s2.successNel[ConfigError]
+  }
 }

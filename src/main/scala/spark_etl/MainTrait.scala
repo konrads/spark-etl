@@ -44,7 +44,7 @@ trait MainTrait {
       builder.getOrCreate
     }
 
-    val env = Map(System.getenv.asScala.toList:_*)
+    val env = extraProps.collect { case (k, v) if k.startsWith("env.") => k.substring("env.".length) -> v }
     command match {
       case ValidateConf =>
         MainUtils.validateConf(confUri, env)
