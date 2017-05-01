@@ -5,20 +5,20 @@ import org.rogach.scallop._
 
 import scala.collection.JavaConverters._
 
-trait MainTrait {
+object Main {
   sealed trait CliCommand
-  object ValidateConf extends CliCommand
-  object ValidateExtractPaths extends CliCommand
+  object ValidateLocal extends CliCommand
+  object ValidateRemote extends CliCommand
   object Transform extends CliCommand
   object ExtractCheck extends CliCommand
   object TransformCheck extends CliCommand
   object CliCommand {
     implicit val cliCommandConverter = singleArgConverter[CliCommand] {
-      case "validate-conf"          => ValidateConf
-      case "validate-extract-paths" => ValidateExtractPaths
-      case "transform"              => Transform
-      case "extract-check"          => ExtractCheck
-      case "transform-check"        => TransformCheck
+      case "validate-local"  => ValidateLocal
+      case "validate-remote" => ValidateRemote
+      case "transform"       => Transform
+      case "extract-check"   => ExtractCheck
+      case "transform-check" => TransformCheck
     }
   }
 
@@ -32,12 +32,12 @@ trait MainTrait {
     verify()
   }
 
-  def main(args: Array[String], sink: MainUtils.Sink): Unit = {
+  def main(args: Array[String]): Unit = {
     val conf = new CliConf(args)
-    main(conf.command(), conf.confUri(), conf.extraProps, conf.count(), sink)
+    main(conf.command(), conf.confUri(), conf.extraProps, conf.count())
   }
 
-  def main(command: CliCommand, confUri: String, extraProps: Map[String, String], shouldCount: Boolean, sink: MainUtils.Sink): Unit = {
+  def main(command: CliCommand, confUri: String, extraProps: Map[String, String], shouldCount: Boolean): Unit = {
     def createSpark(name: String, props: Map[String, String]): SparkSession = {
       val builder = SparkSession.builder.appName(name)
       props.foreach { case (k, v) if k.startsWith("spark.") => builder.config(k, v) }
@@ -46,14 +46,14 @@ trait MainTrait {
 
     val env = extraProps.collect { case (k, v) if k.startsWith("env.") => k.substring("env.".length) -> v }
     command match {
-      case ValidateConf =>
-        MainUtils.validateConf(confUri, env)
-      case ValidateExtractPaths =>
-        MainUtils.validateExtractPaths(confUri, env)
+      case ValidateLocal =>
+        MainUtils.validateLocal(confUri, env)
+      case ValidateRemote =>
+        MainUtils.validateRemote(confUri, env)
       case Transform =>
         implicit val spark = createSpark(className, extraProps)
         try {
-          MainUtils.transform(confUri, env, extraProps, sink, shouldCount)
+          MainUtils.transform(confUri, env, extraProps, shouldCount)
         } finally {
           spark.stop()
         }

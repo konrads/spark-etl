@@ -13,24 +13,29 @@ class ConfigSpec extends FlatSpec with Matchers with Inside {
     }
   }
 
+  it should "fail on unaccounted for ${bogus_var}" in {
+    val bogusConfig = "extracts: ${bogus_var}"
+    inside(Config.parse(bogusConfig)) {
+      case Failure(NonEmptyList(err, INil())) =>
+        err.msg should startWith("Config contains ${var}")
+    }
+  }
+
   it should "read simple config" in {
     val simpleConfig =
       s"""extracts:
          |  - name: e1
-         |    type: parquet
-         |    uri:  uri1
+         |    uri: uri1
          |
          |transforms:
          |  - name: s2
-         |    sql:
-         |      uri: sql_uri2
+         |    sql: sql_uri2
          |    output:
-         |      type: parquet
-         |      uri:  out_uri2
+         |      uri: out_uri2
        """.stripMargin
     Config.parse(simpleConfig) shouldBe Success(Config(
-      List(Extract("e1", InParquet, "uri1")),
-      List(Transform("s2", Resource(Some("sql_uri2")), Output("out_uri2", OutParquet)))
+      List(Extract("e1", "uri1")),
+      List(Transform("s2", "sql_uri2", Output("out_uri2")))
     ))
   }
 
@@ -38,29 +43,50 @@ class ConfigSpec extends FlatSpec with Matchers with Inside {
     val simpleConfig =
        """extracts:
          |  - name: e1
-         |    type: parquet
-         |    uri:  ${var1}
+         |    uri: ${var1}
          |
          |transforms:
          |  - name: s2
-         |    sql:
-         |      uri: ${var1}
+         |    sql: ${var1}
          |    output:
-         |      type: parquet
-         |      uri:  ${var2}
+         |      uri: ${var2}
+         |      partition_by: [col1, col2]
        """.stripMargin
     Config.parse(simpleConfig, Map("var1" -> "XXX", "var2" -> "YYY")) shouldBe Success(Config(
-      List(Extract("e1", InParquet, "XXX")),
-      List(Transform("s2", Resource(Some("XXX")), Output("YYY", OutParquet)))
+      List(Extract("e1", "XXX")),
+      List(Transform("s2", "XXX", Output("YYY", Some(List("col1", "col2")))))
     ))
   }
 
-  it should "fail on unaccounted for ${bogus_var}" in {
-    val bogusConfig = "extracts: ${bogus_var}"
-    inside(Config.parse(bogusConfig)) {
-      case Failure(NonEmptyList(err, INil())) =>
-        err.msg should startWith("Config contains ${var}")
-    }
-
+  it should "read reader/writer constructors" in {
+    val simpleConfig =
+      s"""extracts:
+         |  - name: e1
+         |    uri: uri1
+         |
+         |transforms:
+         |  - name: s2
+         |    sql: sql_uri2
+         |    output:
+         |      uri: out_uri2
+         |
+         |extract_reader:
+         |  class: DummyExtractReader
+         |  params:
+         |    x: 11
+         |    y: aa
+         |
+         |load_writer:
+         |  class: DummyLoadWriter
+         |  params:
+         |    b: false
+         |    a: [1, xxx]
+       """.stripMargin
+    Config.parse(simpleConfig) shouldBe Success(Config(
+      List(Extract("e1", "uri1")),
+      List(Transform("s2", "sql_uri2", Output("out_uri2"))),
+      Some(ParametrizedConstructor("DummyExtractReader", Some(Map("x" -> 11d, "y" -> "aa")))),
+      Some(ParametrizedConstructor("DummyLoadWriter", Some(Map("b" -> false, "a" -> List(1d, "xxx")))))
+    ))
   }
 }
