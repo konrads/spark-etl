@@ -17,7 +17,7 @@ class ConfigSpec extends FlatSpec with Matchers with Inside {
     val bogusConfig = "extracts: ${bogus_var}"
     inside(Config.parse(bogusConfig)) {
       case Failure(NonEmptyList(err, INil())) =>
-        err.msg should startWith("Config contains ${var}")
+        err.msg should startWith("Config contains ${vars}")
     }
   }
 

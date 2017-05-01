@@ -59,7 +59,7 @@ object Config extends DefaultYamlProtocol {
     }
     val unsubstituted = """\$\{.*\}""".r.findAllIn(s2).toSeq.distinct
     if (unsubstituted.nonEmpty)
-      ConfigError(s"Config contains vars post env substitutions: ${unsubstituted.mkString(", ")}").failureNel[String]
+      ConfigError("Config contains ${vars} post env substitutions: " + unsubstituted.mkString(", ")).failureNel[String]
     else
       s2.successNel[ConfigError]
   }
