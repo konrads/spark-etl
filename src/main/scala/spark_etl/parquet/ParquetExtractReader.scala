@@ -4,11 +4,15 @@ import org.apache.spark.sql.{DataFrame, SparkSession}
 import spark_etl.model.Extract
 import spark_etl.{ConfigError, ExtractReader}
 
+import scalaz.Scalaz._
 import scalaz._
 
-
 class ParquetExtractReader(params: Map[String, String]) extends ExtractReader(params) {
-  override def check(extracts: Seq[Extract]): ValidationNel[ConfigError, Unit] = {
+  // nothing to validate
+  override def checkLocal(extracts: Seq[Extract]): ValidationNel[ConfigError, Unit] =
+    ().successNel[ConfigError]
+
+  override def checkRemote(extracts: Seq[Extract]): ValidationNel[ConfigError, Unit] = {
     val parquetUris = extracts.map(_.uri)
     PathValidator.validate(parquetUris: _*).map(_ => ())
   }

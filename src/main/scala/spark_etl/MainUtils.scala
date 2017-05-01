@@ -14,20 +14,36 @@ object MainUtils {
   val log = org.slf4j.LoggerFactory.getLogger(getClass)
 
   def validateLocal(confUri: String, env: Map[String, String]): Unit =
-    withCtx(confUri, env)(_ => log.info("Config validated!").successNel[ConfigError])
+    withCtx(confUri, env) {
+      ctx =>
+        val orgExtracts = ctx.runtimeExtracts.map(_.org)
+        val extractReaderValidation = ctx.extractReader.checkLocal(orgExtracts)
+
+        val ortTransforms = ctx.runtimeTransforms.map(_.org)
+        val loadWriterValidation = ctx.loadWriter.checkLocal(ortTransforms)
+
+        (extractReaderValidation |@| loadWriterValidation) { (_, _) =>
+          log.info(
+            s"""Local context validated!
+               |
+               |ExtractReader validated!
+               |
+               |LoadWriter validated!""".stripMargin)
+        }
+    }
 
   def validateRemote(confUri: String, env: Map[String, String]): Unit =
     withCtx(confUri, env) {
       ctx =>
         val orgExtracts = ctx.runtimeExtracts.map(_.org)
-        val extractReaderValidation = ctx.extractReader.check(orgExtracts)
+        val extractReaderValidation = ctx.extractReader.checkRemote(orgExtracts)
 
         val ortTransforms = ctx.runtimeTransforms.map(_.org)
-        val loadWriterValidation = ctx.loadWriter.check(ortTransforms)
+        val loadWriterValidation = ctx.loadWriter.checkRemote(ortTransforms)
 
         (extractReaderValidation |@| loadWriterValidation) { (_, _) =>
           log.info(
-            s"""Config validated!
+            s"""Remote context validated!
                |
                |ExtractReader validated!
                |
@@ -114,7 +130,7 @@ object MainUtils {
 
   private def validateExtractor(extractor: ExtractReader, extracts: Seq[RuntimeExtract]): ValidationNel[ConfigError, Unit] = {
     val orgExtracts = extracts.map(_.org)
-    extractor.check(orgExtracts).map {
+    extractor.checkRemote(orgExtracts).map {
       _ =>
         val orgExtracts = extracts.map(_.org)
         log.info(

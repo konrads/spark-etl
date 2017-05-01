@@ -110,13 +110,15 @@ class RuntimeContextSpec extends FlatSpec with Matchers with Inside {
 }
 
 class OkExtractReader(val params: Map[String, Any]) extends ExtractReader(params) {
-  override def check(extracts: Seq[Extract]): ValidationNel[ConfigError, Unit] = ???
+  override def checkLocal(extracts: Seq[Extract]): ValidationNel[ConfigError, Unit] = ().successNel[ConfigError]
+  override def checkRemote(extracts: Seq[Extract]): ValidationNel[ConfigError, Unit] = ???
   override def read(extracts: Seq[Extract])(implicit spark: SparkSession): Seq[(Extract, DataFrame)] = ???
 }
 
 class OkLoadWriter(val params: Map[String, Any]) extends LoadWriter(params) {
   override def write(transformsAndDfs: Seq[(Transform, DataFrame)]): Unit = ???
-  override def check(transforms: Seq[Transform]): ValidationNel[ConfigError, Unit] = ???
+  override def checkLocal(transforms: Seq[Transform]): ValidationNel[ConfigError, Unit] = ().successNel[ConfigError]
+  override def checkRemote(transforms: Seq[Transform]): ValidationNel[ConfigError, Unit] = ???
 }
 
 class BogusExtractReader1(params: Map[String, Any])
@@ -124,11 +126,13 @@ class BogusExtractReader1(params: Map[String, Any])
 class BogusLoadWriter1(params: Map[String, Any])
 
 class BogusExtractReader2 extends ExtractReader(Map.empty) {
-  override def check(extracts: Seq[Extract]): ValidationNel[ConfigError, Unit] = ???
+  override def checkLocal(extracts: Seq[Extract]): ValidationNel[ConfigError, Unit] = ().successNel[ConfigError]
+  override def checkRemote(extracts: Seq[Extract]): ValidationNel[ConfigError, Unit] = ???
   override def read(extracts: Seq[Extract])(implicit spark: SparkSession): Seq[(Extract, DataFrame)] = ???
 }
 
 class BogusLoadWriter2 extends LoadWriter(Map.empty) {
   override def write(transformsAndDfs: Seq[(Transform, DataFrame)]): Unit = ???
-  override def check(transforms: Seq[Transform]): ValidationNel[ConfigError, Unit] = ???
+  override def checkLocal(transforms: Seq[Transform]): ValidationNel[ConfigError, Unit] = ().successNel[ConfigError]
+  override def checkRemote(transforms: Seq[Transform]): ValidationNel[ConfigError, Unit] = ???
 }

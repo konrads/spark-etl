@@ -18,6 +18,9 @@ class ParquetLoadWriter(params: Map[String, String]) extends LoadWriter(params) 
   }
 
   // nothing to validate
-  override def check(transforms: Seq[Transform]): ValidationNel[ConfigError, Unit] =
+  override def checkLocal(transforms: Seq[Transform]): ValidationNel[ConfigError, Unit] =
+    ().successNel[ConfigError]
+
+  override def checkRemote(transforms: Seq[Transform]): ValidationNel[ConfigError, Unit] =
     ().successNel[ConfigError]
 }
