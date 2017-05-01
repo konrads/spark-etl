@@ -122,8 +122,8 @@ object MainUtils {
       case Success(_) =>
         log.info("Success!")
       case Failure(errors) =>
-        val errorStr = errors.map(e => e.exc.map(exc => s"• ${e.msg}, exception: $exc\n${stacktrace(exc)}").getOrElse(e.msg)).toList.mkString("\n")
-        log.error(s"Failed due to:\n $errorStr")
+        val errorStr = errors.map(e => e.exc.map(exc => s"• ${e.msg}, exception: $exc\n${stacktrace(exc)}").getOrElse(s"• ${e.msg}")).toList.mkString("\n")
+        log.error(s"Failed due to:\n$errorStr")
         System.exit(1)
     }
   }
