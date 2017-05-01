@@ -57,8 +57,9 @@ object Config extends DefaultYamlProtocol {
     val s2 = env.foldLeft(s) {
       case (soFar, (key, value)) => soFar.replaceAll("\\$\\{" + key + "\\}", value)
     }
-    if ("""\$\{.*\}""".r.findFirstIn(s2).isDefined)
-      ConfigError("Config contains ${var} post env substitutions").failureNel[String]
+    val unsubstituted = """\$\{.*\}""".r.findAllIn(s2).toSeq.distinct
+    if (unsubstituted.nonEmpty)
+      ConfigError(s"Config contains vars post env substitutions: ${unsubstituted.mkString(", ")}").failureNel[String]
     else
       s2.successNel[ConfigError]
   }
