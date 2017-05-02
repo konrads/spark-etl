@@ -35,7 +35,7 @@ class ConfigSpec extends FlatSpec with Matchers with Inside {
        """.stripMargin
     Config.parse(simpleConfig) shouldBe Success(Config(
       List(Extract("e1", "uri1")),
-      List(Transform("s2", "sql_uri2", Output("out_uri2")))
+      List(Transform("s2", "sql_uri2", Some(Output("out_uri2"))))
     ))
   }
 
@@ -54,7 +54,7 @@ class ConfigSpec extends FlatSpec with Matchers with Inside {
        """.stripMargin
     Config.parse(simpleConfig, Map("var1" -> "XXX", "var2" -> "YYY")) shouldBe Success(Config(
       List(Extract("e1", "XXX")),
-      List(Transform("s2", "XXX", Output("YYY", Some(List("col1", "col2")))))
+      List(Transform("s2", "XXX", Some(Output("YYY", Some(List("col1", "col2"))))))
     ))
   }
 
@@ -84,7 +84,7 @@ class ConfigSpec extends FlatSpec with Matchers with Inside {
        """.stripMargin
     Config.parse(simpleConfig) shouldBe Success(Config(
       List(Extract("e1", "uri1")),
-      List(Transform("s2", "sql_uri2", Output("out_uri2"))),
+      List(Transform("s2", "sql_uri2", Some(Output("out_uri2")))),
       Some(ParametrizedConstructor("DummyExtractReader", Some(Map("x" -> 11d, "y" -> "aa")))),
       Some(ParametrizedConstructor("DummyLoadWriter", Some(Map("b" -> false, "a" -> List(1d, "xxx")))))
     ))

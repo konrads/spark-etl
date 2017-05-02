@@ -40,7 +40,7 @@ object Main {
   def main(command: CliCommand, confUri: String, extraProps: Map[String, String], shouldCount: Boolean): Unit = {
     def createSpark(name: String, props: Map[String, String]): SparkSession = {
       val builder = SparkSession.builder.appName(name)
-      props.foreach { case (k, v) if k.startsWith("spark.") => builder.config(k, v) }
+      props.collect { case (k, v) if k.startsWith("spark.") => builder.config(k, v) }
       builder.getOrCreate
     }
 

@@ -9,10 +9,10 @@ import scalaz._
 
 class ParquetLoadWriter(params: Map[String, String]) extends LoadWriter(params) {
   override def write(transformsAndDfs: Seq[(Transform, DataFrame)]): Unit = {
-    transformsAndDfs.foreach {
-      case (t, df) => t.output.partition_by match {
-        case Some(partitionBy) => df.write.partitionBy(partitionBy:_*).parquet(t.output.uri)
-        case None              => df.write.parquet(t.output.uri)
+    transformsAndDfs.collect {
+      case (Transform(_, _, Some(output), _), df) => output.partition_by match {
+        case Some(partitionBy) => df.write.partitionBy(partitionBy:_*).parquet(output.uri)
+        case None              => df.write.parquet(output.uri)
       }
     }
   }
