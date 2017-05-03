@@ -25,17 +25,21 @@ class ConfigSpec extends FlatSpec with Matchers with Inside {
     val simpleConfig =
       s"""extracts:
          |  - name: e1
-         |    uri: uri1
+         |    uri: e1_uri
          |
          |transforms:
-         |  - name: s2
-         |    sql: sql_uri2
-         |    output:
-         |      uri: out_uri2
+         |  - name: t1
+         |    sql: t1_uri
+         |
+         |loads:
+         |  - name: l1
+         |    source: t1
+         |    uri: l1_uri
        """.stripMargin
     Config.parse(simpleConfig) shouldBe Success(Config(
-      List(Extract("e1", "uri1")),
-      List(Transform("s2", "sql_uri2", Some(Output("out_uri2"))))
+      List(Extract("e1", "e1_uri")),
+      List(Transform("t1", "t1_uri")),
+      List(Load("l1", "t1", "l1_uri"))
     ))
   }
 
@@ -46,29 +50,36 @@ class ConfigSpec extends FlatSpec with Matchers with Inside {
          |    uri: ${var1}
          |
          |transforms:
-         |  - name: s2
+         |  - name: t1
          |    sql: ${var1}
-         |    output:
-         |      uri: ${var2}
-         |      partition_by: [col1, col2]
+         |
+         |loads:
+         |  - name: l1
+         |    source: t1
+         |    uri: ${var2}
+         |    partition_by: [col1, col2]
        """.stripMargin
     Config.parse(simpleConfig, Map("var1" -> "XXX", "var2" -> "YYY")) shouldBe Success(Config(
       List(Extract("e1", "XXX")),
-      List(Transform("s2", "XXX", Some(Output("YYY", Some(List("col1", "col2"))))))
-    ))
+      List(Transform("t1", "XXX")),
+      List(Load("l1", "t1", "YYY", Some(List("col1", "col2")))
+    )))
   }
 
   it should "read reader/writer constructors" in {
     val simpleConfig =
       s"""extracts:
          |  - name: e1
-         |    uri: uri1
+         |    uri: e1_uri
          |
          |transforms:
-         |  - name: s2
-         |    sql: sql_uri2
-         |    output:
-         |      uri: out_uri2
+         |  - name: t1
+         |    sql: t1_uri
+         |
+         |loads:
+         |  - name: l1
+         |    source: t1
+         |    uri: l1_uri
          |
          |extract_reader:
          |  class: DummyExtractReader
@@ -83,8 +94,9 @@ class ConfigSpec extends FlatSpec with Matchers with Inside {
          |    a: [1, xxx]
        """.stripMargin
     Config.parse(simpleConfig) shouldBe Success(Config(
-      List(Extract("e1", "uri1")),
-      List(Transform("s2", "sql_uri2", Some(Output("out_uri2")))),
+      List(Extract("e1", "e1_uri")),
+      List(Transform("t1", "t1_uri")),
+      List(Load("l1", "t1", "l1_uri")),
       Some(ParametrizedConstructor("DummyExtractReader", Some(Map("x" -> 11d, "y" -> "aa")))),
       Some(ParametrizedConstructor("DummyLoadWriter", Some(Map("b" -> false, "a" -> List(1d, "xxx")))))
     ))

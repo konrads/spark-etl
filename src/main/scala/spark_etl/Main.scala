@@ -3,20 +3,18 @@ package spark_etl
 import org.apache.spark.sql._
 import org.rogach.scallop._
 
-import scala.collection.JavaConverters._
-
 object Main {
   sealed trait CliCommand
   object ValidateLocal extends CliCommand
   object ValidateRemote extends CliCommand
-  object Transform extends CliCommand
+  object TransformLoad extends CliCommand
   object ExtractCheck extends CliCommand
   object TransformCheck extends CliCommand
   object CliCommand {
     implicit val cliCommandConverter = singleArgConverter[CliCommand] {
       case "validate-local"  => ValidateLocal
       case "validate-remote" => ValidateRemote
-      case "transform"       => Transform
+      case "transform-load"  => TransformLoad
       case "extract-check"   => ExtractCheck
       case "transform-check" => TransformCheck
     }
@@ -50,10 +48,10 @@ object Main {
         MainUtils.validateLocal(confUri, env)
       case ValidateRemote =>
         MainUtils.validateRemote(confUri, env)
-      case Transform =>
+      case TransformLoad =>
         implicit val spark = createSpark(className, extraProps)
         try {
-          MainUtils.transform(confUri, env, extraProps, shouldCount)
+          MainUtils.transformAndLoad(confUri, env, extraProps, shouldCount)
         } finally {
           spark.stop()
         }

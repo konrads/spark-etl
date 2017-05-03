@@ -4,8 +4,8 @@ import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.scalatest.{FlatSpec, Inside, Matchers}
 import spark_etl.{ConfigError, ExtractReader, LoadWriter}
 
+import scalaz.Scalaz._
 import scalaz._
-import Scalaz._
 
 class RuntimeContextSpec extends FlatSpec with Matchers with Inside {
   val extractsAndTransformsStr =
@@ -28,22 +28,27 @@ class RuntimeContextSpec extends FlatSpec with Matchers with Inside {
       |  - name:  client_spending
       |    check: "/spark/transform-check/client_spending.sql"
       |    sql:   "/spark/transform/client_spending.sql"
-      |    output:
-      |      uri:  "/tmp/out/client_spending"
-      |      # no partition_by
       |  - name:  item_purchase
       |    check: "/spark/transform-check/item_purchase.sql"
       |    sql:   "/spark/transform/item_purchase.sql"
-      |    output:
-      |      uri:  "/tmp/out/item_purchase"
-      |      # no partition_by
       |  - name:  minor_purchase
       |    check: "/spark/transform-check/minor_purchase.sql"
       |    sql:   "/spark/transform/minor_purchase.sql"
-      |    output:
-      |      uri:  "/tmp/out/minor_purchase"
-      |      # no partition_by
-    """.stripMargin
+      |
+      |loads:
+      |  - name:   client_spending_out
+      |    source: client_spending
+      |    uri:    "/tmp/out/client_spending"
+      |    # no partition_by
+      |  - name:   item_purchase_out
+      |    source: item_purchase
+      |    uri:    "/tmp/out/item_purchase"
+      |    # no partition_by
+      |  - name:   minor_purchase_out
+      |    source: minor_purchase
+      |    uri:    "/tmp/out/minor_purchase"
+      |    # no partition_by
+      |    """.stripMargin
 
   "RuntimeContext" should "validate ok extract_reader/load_writer" in {
     val confStr = extractsAndTransformsStr +
@@ -116,9 +121,9 @@ class OkExtractReader(val params: Map[String, Any]) extends ExtractReader(params
 }
 
 class OkLoadWriter(val params: Map[String, Any]) extends LoadWriter(params) {
-  override def write(transformsAndDfs: Seq[(Transform, DataFrame)]): Unit = ???
-  override def checkLocal(transforms: Seq[Transform]): ValidationNel[ConfigError, Unit] = ().successNel[ConfigError]
-  override def checkRemote(transforms: Seq[Transform]): ValidationNel[ConfigError, Unit] = ???
+  override def write(loadsAndDfs: Seq[(Load, DataFrame)]): Unit = ???
+  override def checkLocal(loads: Seq[Load]): ValidationNel[ConfigError, Unit] = ().successNel[ConfigError]
+  override def checkRemote(loads: Seq[Load]): ValidationNel[ConfigError, Unit] = ???
 }
 
 class BogusExtractReader1(params: Map[String, Any])
@@ -132,7 +137,7 @@ class BogusExtractReader2 extends ExtractReader(Map.empty) {
 }
 
 class BogusLoadWriter2 extends LoadWriter(Map.empty) {
-  override def write(transformsAndDfs: Seq[(Transform, DataFrame)]): Unit = ???
-  override def checkLocal(transforms: Seq[Transform]): ValidationNel[ConfigError, Unit] = ().successNel[ConfigError]
-  override def checkRemote(transforms: Seq[Transform]): ValidationNel[ConfigError, Unit] = ???
+  override def write(loadsAndDfs: Seq[(Load, DataFrame)]): Unit = ???
+  override def checkLocal(loads: Seq[Load]): ValidationNel[ConfigError, Unit] = ().successNel[ConfigError]
+  override def checkRemote(loads: Seq[Load]): ValidationNel[ConfigError, Unit] = ???
 }

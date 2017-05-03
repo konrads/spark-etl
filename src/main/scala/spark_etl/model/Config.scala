@@ -12,11 +12,12 @@ import scalaz._
 case class Config(
                    extracts: List[Extract],
                    transforms: List[Transform],
+                   loads: List[Load],
                    extract_reader: Option[ParametrizedConstructor] = Some(ParametrizedConstructor("spark_etl.parquet.ParquetExtractReader", Some(Map.empty))),
                    load_writer: Option[ParametrizedConstructor] = Some(ParametrizedConstructor("spark_etl.parquet.ParquetLoadWriter", Some(Map.empty))))
 
 object Config extends DefaultYamlProtocol {
-  implicit val yamlFormat = yamlFormat4(Config.apply)
+  implicit val yamlFormat = yamlFormat5(Config.apply)
 
   /**
     * Load Config from resource Uri
@@ -30,8 +31,8 @@ object Config extends DefaultYamlProtocol {
         Try(tokenReplaced.parseYaml.convertTo[Config]) match {
           case Success(conf) =>
             // yaml parser does not populate with defaults - force them
-            val defaultExtractReader = Config(Nil, Nil).extract_reader
-            val defaultLoadWriter = Config(Nil, Nil).load_writer
+            val defaultExtractReader = Config(Nil, Nil, Nil).extract_reader
+            val defaultLoadWriter = Config(Nil, Nil, Nil).load_writer
             val conf2 = conf.copy(
               extract_reader = conf.extract_reader.orElse(defaultExtractReader),
               load_writer = conf.load_writer.orElse(defaultLoadWriter)

@@ -16,11 +16,10 @@ object MainUtils {
   def validateLocal(confUri: String, env: Map[String, String]): Unit =
     withCtx(confUri, env) {
       ctx =>
-        val orgExtracts = ctx.runtimeExtracts.map(_.org)
+        val orgExtracts = ctx.allExtracts.map(_.org)
         val extractReaderValidation = ctx.extractReader.checkLocal(orgExtracts)
 
-        val ortTransforms = ctx.runtimeTransforms.map(_.org)
-        val loadWriterValidation = ctx.loadWriter.checkLocal(ortTransforms)
+        val loadWriterValidation = ctx.loadWriter.checkLocal(ctx.loads)
 
         (extractReaderValidation |@| loadWriterValidation) { (_, _) =>
           log.info(
@@ -35,11 +34,10 @@ object MainUtils {
   def validateRemote(confUri: String, env: Map[String, String]): Unit =
     withCtx(confUri, env) {
       ctx =>
-        val orgExtracts = ctx.runtimeExtracts.map(_.org)
+        val orgExtracts = ctx.allExtracts.map(_.org)
         val extractReaderValidation = ctx.extractReader.checkRemote(orgExtracts)
 
-        val ortTransforms = ctx.runtimeTransforms.map(_.org)
-        val loadWriterValidation = ctx.loadWriter.checkRemote(ortTransforms)
+        val loadWriterValidation = ctx.loadWriter.checkRemote(ctx.loads)
 
         (extractReaderValidation |@| loadWriterValidation) { (_, _) =>
           log.info(
@@ -51,16 +49,20 @@ object MainUtils {
         }
     }
 
-  def transform(confUri: String, env: Map[String, String], props: Map[String, String], showCounts: Boolean)(implicit spark: SparkSession): Unit =
+  def transformAndLoad(confUri: String, env: Map[String, String], props: Map[String, String], showCounts: Boolean)(implicit spark: SparkSession): Unit =
     withCtx(confUri, env) {
       ctx =>
         for {
           _ <- readExtracts(ctx.extractReader, ctx.allExtracts)
-          transformed <- loadTransforms(ctx.runtimeTransforms)
+          transformed <- loadTransforms(ctx.allTransforms)
           _ <- runCounts(transformed, showCounts)
           written <- Try {
-            val orgTansforms = transformed.map { case (t, df) => (t.org, df) }
-            ctx.loadWriter.write(orgTansforms)
+            val loadsAndDfs = for {
+              (t, df) <- transformed
+              l <- ctx.allLoads
+              l <- if (t.org.name == l.source) List(l) else Nil
+            } yield (l, df)
+            ctx.loadWriter.write(loadsAndDfs)
           } match {
             case scala.util.Success(_) => ().successNel[ConfigError]
             case scala.util.Failure(e) => ConfigError("Failed to write out transform", Some(e)).failureNel[Unit]
@@ -75,7 +77,7 @@ object MainUtils {
           _ <- readExtracts(ctx.extractReader, ctx.allExtracts)
           _ <- {
             //
-            val runnableChecks = ctx.runtimeTransforms.flatMap(_.extracts.map(_.org).collect { case e if e.check.isDefined => (e.name, e.check.get) })
+            val runnableChecks = ctx.allExtracts.map(_.org).collect { case e if e.check.isDefined => (e.name, e.check.get) }
             runAndReport("Extract checks", runnableChecks)
           }
         } yield ()
@@ -86,10 +88,10 @@ object MainUtils {
       ctx =>
         for {
           _ <- readExtracts(ctx.extractReader, ctx.allExtracts)
-          transformed <- loadTransforms(ctx.runtimeTransforms)
+          transformed <- loadTransforms(ctx.allTransforms)
           _ <- runCounts(transformed, showCounts)
           _ <- {
-            val runnableChecks = ctx.runtimeTransforms.collect { case t if t.org.check.isDefined => (t.org.name, t.org.check.get) }
+            val runnableChecks = ctx.allTransforms.collect { case t if t.org.check.isDefined => (t.org.name, t.org.check.get) }
             runAndReport("Transform checks", runnableChecks)
           }
         } yield ()
@@ -105,13 +107,15 @@ object MainUtils {
             |=========================
             |
             |Extracts:
-            |${ctx.allExtracts.map(e => s"• ${e.org.name} -> ${e.org.uri}").mkString("\n")}
+            |${toBullets(ctx.allExtracts.map(e => e.org.name -> e.org.uri))}
             |Extract checks:
-            |${ctx.allExtracts.flatMap(e => e.org.check.map(checkUri => List(s"• ${e.org.name} -> $checkUri")).getOrElse(Nil)).mkString("\n")}
+            |${toBullets(ctx.allExtracts.flatMap(e => e.org.check.map(checkUri => e.org.name -> checkUri)))}
             |Transforms:
-            |${ctx.runtimeTransforms.map(t => s"• ${t.org.name} -> ${t.org.sql}").mkString("\n")}
+            |${toBullets(ctx.allTransforms.map(t => t.org.name -> t.org.sql))}
             |Transform checks:
-            |${ctx.runtimeTransforms.flatMap(t => t.org.check.map(checkUri => List(s"• ${t.org.name} -> $checkUri")).getOrElse(Nil)).mkString("\n")}
+            |${toBullets(ctx.allTransforms.flatMap(t => t.org.check.map(checkUri => t.org.name -> checkUri)))}
+            |Loads:
+            |${toBullets(ctx.loads.map(l => l.name -> l.uri))}
            """.stripMargin
 
       log.info(ctxDesc)
@@ -125,18 +129,6 @@ object MainUtils {
         val errorStr = errors.map(e => e.exc.map(exc => s"• ${e.msg}, exception: $exc\n${stacktrace(exc)}").getOrElse(s"• ${e.msg}")).toList.mkString("\n")
         log.error(s"Failed due to:\n$errorStr")
         System.exit(1)
-    }
-  }
-
-  private def validateExtractor(extractor: ExtractReader, extracts: Seq[RuntimeExtract]): ValidationNel[ConfigError, Unit] = {
-    val orgExtracts = extracts.map(_.org)
-    extractor.checkRemote(orgExtracts).map {
-      _ =>
-        val orgExtracts = extracts.map(_.org)
-        log.info(
-          s"""|Validated extract paths
-              |=======================
-              |${orgExtracts.map(e => s"• ${e.name} -> ${e.uri}").mkString("\n")}""".stripMargin)
     }
   }
 
@@ -157,7 +149,7 @@ object MainUtils {
     Try {
       transforms.map {
         t =>
-          val df = spark.sql(t.sqlRes.contents)
+          val df = spark.sql(t.sqlContents)
           df.createOrReplaceTempView(t.org.name)
           (t, df)
       }
@@ -171,8 +163,8 @@ object MainUtils {
       ().successNel[ConfigError]
     else
       Try {
-        val countDescrs = transformsAndDfs.map { case (t, df) => s"• ${t.org.name}: ${df.count}"}
-        log.info(s"Transform counts:\n${countDescrs.mkString("\n")}")
+        val countDescrs = toBullets(transformsAndDfs.map { case (t, df) => t.org.name -> df.count.toString }, ": ")
+        log.info(s"Transform counts:\n$countDescrs")
       } match {
         case scala.util.Success(_) => ().successNel[ConfigError]
         case scala.util.Failure(exc) => ConfigError("Failed to run counts", Some(exc)).failureNel[Unit]
@@ -199,4 +191,7 @@ object MainUtils {
     t.printStackTrace(new PrintWriter(w))
     w.toString
   }
+
+  private def toBullets(kvs: Seq[(String, String)], sep: String = " -> ") =
+    if (kvs.isEmpty) "  NA" else kvs.map { case (k, v) => s"• $k$sep$v" }.mkString("\n")
 }
