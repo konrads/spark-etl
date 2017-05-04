@@ -4,6 +4,7 @@ import net.jcazevedo.moultingyaml._
 import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation
 import org.apache.spark.sql.catalyst.parser._
 import org.apache.spark.sql.catalyst.plans.logical._
+import spark_etl.parser.Parser
 import spark_etl.util._
 import spark_etl.{ConfigError, ExtractReader, LoadWriter}
 
@@ -146,7 +147,7 @@ object RuntimeContext extends DefaultYamlProtocol {
     }
 
   private def validateResolvedDsos(depTree: DepTree, name: String, node: ETLNode, errMsgPrefix: String)(contents: String): ValidationNel[ConfigError, String] =
-    Try(getDsos(contents)) match {
+    Try(Parser.getDsos(contents)) match {
       case Success(usedDsos) =>
         usedDsos.map(_.toLowerCase).foreach(d => depTree.addActual(d, Node(name, node)))
         contents.successNel[ConfigError]
@@ -177,19 +178,6 @@ object RuntimeContext extends DefaultYamlProtocol {
       }
       errors.reduce(_ +++ _)
     }
-  }
-
-  private def getDsos(sql: String): List[String] = {
-    def getDsoNames(plan: LogicalPlan, soFar: List[String] = List.empty): List[String] = {
-      plan match {
-        case un: UnaryNode => getDsoNames(un.child, soFar)
-        case bn: BinaryNode => getDsoNames(bn.right, getDsoNames(bn.left, soFar))
-        case ur: UnresolvedRelation => ur.tableIdentifier.table :: soFar
-        case u: Union => u.children.foldLeft(soFar) { case (soFar2, c) => getDsoNames(c, soFar2)}
-        case _ => soFar
-      }
-    }
-    getDsoNames(CatalystSqlParser.parsePlan(sql))
   }
 
   private def instantiate[T](paramConstr: ParametrizedConstructor, parentClass: Class[_]): ValidationNel[ConfigError, T] = {
