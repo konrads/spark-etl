@@ -1,9 +1,7 @@
 package spark_etl.model
 
 import net.jcazevedo.moultingyaml._
-import org.apache.spark.sql.catalyst.analysis.UnresolvedRelation
 import org.apache.spark.sql.catalyst.parser._
-import org.apache.spark.sql.catalyst.plans.logical._
 import spark_etl.parser.Parser
 import spark_etl.util._
 import spark_etl.{ConfigError, ExtractReader, LoadWriter}
@@ -156,7 +154,6 @@ object RuntimeContext extends DefaultYamlProtocol {
       case Failure(e) =>
         ConfigError(s"$errMsgPrefix: failed to parse", Some(e)).failureNel[String]
     }
-
 
   private def validateDepTree(depTree: DepTree): ValidationNel[ConfigError, Unit] = {
     val danglingDeps = depTree.dangling
