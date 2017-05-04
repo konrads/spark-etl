@@ -145,7 +145,7 @@ object RuntimeContext extends DefaultYamlProtocol {
   private def validateResolvedDsos(depTree: DepTree, name: String, node: ETLNode, errMsgPrefix: String)(contents: String): ValidationNel[ConfigError, String] =
     Try(getDsos(contents)) match {
       case Success(usedDsos) =>
-        usedDsos.foreach(d => depTree.addActual(d, Node(name, node)))
+        usedDsos.map(_.toLowerCase).foreach(d => depTree.addActual(d, Node(name, node)))
         contents.successNel[ConfigError]
       case Failure(e: ParseException) =>
         ConfigError(s"$errMsgPrefix: failed to parse, error: ${e.getMessage}").failureNel[String]
