@@ -46,7 +46,7 @@ object RuntimeContext extends DefaultYamlProtocol {
   /**
     * Emphasis on *maximum* validation.
     */
-  def load(_conf: Config): ValidationNel[ConfigError, RuntimeContext] = {
+  def load(_conf: Config, env: Map[String, String]): ValidationNel[ConfigError, RuntimeContext] = {
     // depTree, with the known universe
     val conf = toLowerCase(_conf)
     val allExtractNames = conf.extracts.map(_.name)
@@ -73,11 +73,11 @@ object RuntimeContext extends DefaultYamlProtocol {
 
     // read in entities and add their deps
     val regExtracts = conf.extracts
-      .map(e => registerExtractDeps(e, depTree))
+      .map(e => registerExtractDeps(e, depTree, env))
       .map(_.map(List(_))).reduce(_ +++ _)
 
     val regTransforms = conf.transforms
-      .map(t => registerTransformDeps(t, depTree))
+      .map(t => registerTransformDeps(t, depTree, env))
       .map(_.map(List(_))).reduce(_ +++ _)
 
     conf.loads.foreach(l => depTree.addActual(l.source, Node(l.name, L)))
@@ -98,22 +98,25 @@ object RuntimeContext extends DefaultYamlProtocol {
       loads = conf.loads.map(l => l.copy(source = l.source.toLowerCase))
     )
 
-  private def loadResource(uri: String): ValidationNel[ConfigError, String] = {
+  private def loadResource(uri: String, env: Map[String, String]): ValidationNel[ConfigError, String] = {
     val fqUri = getClass.getResource(uri)
     if (fqUri == null)
       ConfigError(s"Failed to read resource $uri").failureNel[String]
-    else
-      Source.fromURL(fqUri).mkString.successNel[ConfigError]
+    else {
+      val contents = Source.fromURL(fqUri).mkString
+      val contents2 = env.foldLeft(contents) { case (soFar, (k, v)) => soFar.replaceAll("\\$\\{" + k + "\\}", v) }
+      contents2.successNel[ConfigError]
+    }
   }
 
   /**
     * Load & parse check, if specified
     * Note, extract check is only dependant on the extract
     */
-  private def registerExtractDeps(extract: Extract, depTree: DepTree): ValidationNel[ConfigError, RuntimeExtract] =
+  private def registerExtractDeps(extract: Extract, depTree: DepTree, env: Map[String, String]): ValidationNel[ConfigError, RuntimeExtract] =
     extract.check match {
       case Some(checkUri) =>
-        loadResource(checkUri)
+        loadResource(checkUri, env)
           .flatMap(validateResolvedDsos(depTree, extract.name, Echeck, s"extract check ${extract.name} (uri $checkUri)"))
           .map(checkTxt => RuntimeExtract(extract, Some(checkTxt)))
       case None =>
@@ -126,11 +129,11 @@ object RuntimeContext extends DefaultYamlProtocol {
     * Load & parse post_check, if specified
     * Check dso dependencies
     */
-  private def registerTransformDeps(transform: Transform, depTree: DepTree): ValidationNel[ConfigError, RuntimeTransform] = {
+  private def registerTransformDeps(transform: Transform, depTree: DepTree, env: Map[String, String]): ValidationNel[ConfigError, RuntimeTransform] = {
     // load resources
-    val validatedSql = loadResource(transform.sql)
+    val validatedSql = loadResource(transform.sql, env)
       .flatMap(validateResolvedDsos(depTree, transform.name, T, s"Unparsable sql of transform ${transform.name}"))
-    val validatedCheck = liftOpt(transform.check)(loadResource(_)
+    val validatedCheck = liftOpt(transform.check)(r => loadResource(r, env)
       .flatMap(validateResolvedDsos(depTree, transform.name, Tcheck, s"Unparsable sql of transform check ${transform.name}")))
 
     (validatedSql |@| validatedCheck) { (sql, check) => RuntimeTransform(transform, sql, check) }
@@ -145,7 +148,7 @@ object RuntimeContext extends DefaultYamlProtocol {
   private def validateResolvedDsos(depTree: DepTree, name: String, node: ETLNode, errMsgPrefix: String)(contents: String): ValidationNel[ConfigError, String] =
     Try(getDsos(contents)) match {
       case Success(usedDsos) =>
-        usedDsos.map(_.toLowerCase).foreach(d => depTree.addActual(d, Node(name, node)))
+        usedDsos.foreach(d => depTree.addActual(d, Node(name, node)))
         contents.successNel[ConfigError]
       case Failure(e: ParseException) =>
         ConfigError(s"$errMsgPrefix: failed to parse, error: ${e.getMessage}").failureNel[String]
