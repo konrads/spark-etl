@@ -193,5 +193,10 @@ object MainUtils {
   }
 
   private def toBullets(kvs: Seq[(String, String)], sep: String = " -> ") =
-    if (kvs.isEmpty) "  NA" else kvs.map { case (k, v) => s"• $k$sep$v" }.mkString("\n")
+    if (kvs.isEmpty)
+      "  NA"
+    else {
+      val maxKLen = kvs.map(_._1.length).max
+      kvs.map { case (k, v) => s"• ${k.padTo(maxKLen, ' ')}$sep$v" }.mkString("\n")
+    }
 }
