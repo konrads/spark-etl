@@ -67,7 +67,7 @@ class RuntimeContextSpec extends FlatSpec with Matchers with Inside {
       """.stripMargin
     Config.parse(confStr) match {
       case Success(conf) =>
-        RuntimeContext.load(conf) match {
+        RuntimeContext.load(conf, Map.empty) match {
           case Success(ctx) =>
             ctx.extractReader.asInstanceOf[OkExtractReader].params shouldBe Map("x" -> 11d, "y" -> "aa")
             ctx.loadWriter.asInstanceOf[OkLoadWriter].params shouldBe Map("b" -> false, "a" -> List(1d, "xxx"))
@@ -86,7 +86,7 @@ class RuntimeContextSpec extends FlatSpec with Matchers with Inside {
       """.stripMargin
     Config.parse(confStr) match {
       case Success(conf) =>
-        RuntimeContext.load(conf) match {
+        RuntimeContext.load(conf, Map.empty) match {
           case Failure(errs) =>
             errs.toList.length shouldBe 2
             errs.toList.forall(_.msg.startsWith("Failed to cast class")) shouldBe true
@@ -105,7 +105,7 @@ class RuntimeContextSpec extends FlatSpec with Matchers with Inside {
       """.stripMargin
     Config.parse(confStr) match {
       case Success(conf) =>
-        RuntimeContext.load(conf) match {
+        RuntimeContext.load(conf, Map.empty) match {
           case Failure(errs) =>
             errs.toList.length shouldBe 2
             errs.toList.forall(_.msg.startsWith("Failed to instantiate class")) shouldBe true
