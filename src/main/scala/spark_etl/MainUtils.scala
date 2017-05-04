@@ -100,7 +100,7 @@ object MainUtils {
   private def withCtx(confUri: String, env: Map[String, String])(run: (RuntimeContext) => ValidationNel[ConfigError, Unit]): Unit = {
     val validatedCtx = for {
       conf <- Config.load(confUri, env)
-      ctx  <- RuntimeContext.load(conf)
+      ctx  <- RuntimeContext.load(conf, env)
     } yield {
       val ctxDesc =
         s"""|Validated runtime context
