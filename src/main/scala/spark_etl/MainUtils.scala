@@ -77,7 +77,7 @@ object MainUtils {
           _ <- readExtracts(ctx.extractReader, ctx.allExtracts)
           _ <- {
             //
-            val runnableChecks = ctx.allExtracts.map(_.org).collect { case e if e.check.isDefined => (e.name, e.check.get) }
+            val runnableChecks = ctx.allExtracts.collect { case e if e.checkContents.isDefined => e.org.name -> e.checkContents.get }
             runAndReport("Extract checks", runnableChecks)
           }
         } yield ()
@@ -91,7 +91,7 @@ object MainUtils {
           transformed <- loadTransforms(ctx.allTransforms)
           _ <- runCounts(transformed, showCounts)
           _ <- {
-            val runnableChecks = ctx.allTransforms.collect { case t if t.org.check.isDefined => (t.org.name, t.org.check.get) }
+            val runnableChecks = ctx.allTransforms.collect { case t if t.checkContents.isDefined => t.org.name -> t.checkContents.get }
             runAndReport("Transform checks", runnableChecks)
           }
         } yield ()
@@ -176,9 +176,9 @@ object MainUtils {
         case (transformName, sql) =>
           val df = spark.sql(sql)
           val fieldDesc = df.take(100).map(r => df.schema.fields zip r.toSeq).flatMap(_.map {
-            case (f, value) => s"${f.name} = $value"
+            case (f, value) => f.name -> value.toString
           })
-          s"$transformName: ${fieldDesc.mkString(", ")}"
+          s"$transformName:\n${toBullets(fieldDesc)}"
       }
       log.info(s"$desc:\n${outputs.mkString(",")}")
     } match {

@@ -12,7 +12,7 @@ import scalaz.Scalaz._
 import scalaz.Validation.FlatMap._
 import scalaz._
 
-case class RuntimeExtract(org: Extract, checkRes: Option[String])
+case class RuntimeExtract(org: Extract, checkContents: Option[String])
 
 case class RuntimeTransform(org: Transform, sqlContents: String, checkContents: Option[String])
 
