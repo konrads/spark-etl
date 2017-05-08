@@ -2,6 +2,7 @@ package spark_etl
 
 import org.apache.spark.sql._
 import org.rogach.scallop._
+import spark_etl.util.Files
 
 object Main {
   sealed trait CliCommand
@@ -42,30 +43,31 @@ object Main {
       builder.getOrCreate
     }
 
+    val pwd = Files.pwd
     val env = extraProps.collect { case (k, v) if k.startsWith("env.") => k.substring("env.".length) -> v }
     command match {
       case ValidateLocal =>
-        MainUtils.validateLocal(confUri, env)
+        MainUtils.validateLocal(confUri, pwd, env)
       case ValidateRemote =>
-        MainUtils.validateRemote(confUri, env)
+        MainUtils.validateRemote(confUri, pwd, env)
       case TransformLoad =>
         implicit val spark = createSpark(className, extraProps)
         try {
-          MainUtils.transformAndLoad(confUri, env, extraProps, shouldCount)
+          MainUtils.transformAndLoad(confUri, pwd, env, extraProps, shouldCount)
         } finally {
           spark.stop()
         }
       case ExtractCheck =>
         implicit val spark = createSpark(className, extraProps)
         try {
-          MainUtils.extractCheck(confUri, env)
+          MainUtils.extractCheck(confUri, pwd, env)
         } finally {
           spark.stop()
         }
       case TransformCheck =>
         implicit val spark = createSpark(className, extraProps)
         try {
-          MainUtils.transformCheck(confUri, env, shouldCount)
+          MainUtils.transformCheck(confUri, pwd, env, shouldCount)
         } finally {
           spark.stop()
         }

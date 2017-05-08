@@ -22,8 +22,8 @@ object Config extends DefaultYamlProtocol {
   /**
     * Load Config from resource/file Uri
     */
-  def load(resourceUri: String, env: Map[String, String]): ValidationNel[ConfigError, Config] =
-    UriLoader.load(resourceUri, env).flatMap(parse(_, env))
+  def load(resourceUri: String, filePathRoot: String, env: Map[String, String]): ValidationNel[ConfigError, Config] =
+    UriLoader.load(resourceUri, filePathRoot, env).flatMap(parse(_, env))
 
   def parse(configStr: String, env: Map[String, String] = Map.empty): ValidationNel[ConfigError, Config] =
     Try(configStr.parseYaml.convertTo[Config]) match {

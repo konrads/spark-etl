@@ -11,12 +11,19 @@ object UriLoader {
   private val fileProtocol = "file:"
   private val resourceProtocol = "resource:"
 
-  def load(uri: String, env: Map[String, String]): ValidationNel[ConfigError, String] =
+  def load(uri: String, filePathRoot: String, env: Map[String, String]): ValidationNel[ConfigError, String] =
     for {
       contents <-
-        if (uri.startsWith(fileProtocol))
-          loadFile(uri.substring(fileProtocol.length), env)
-        else if (uri.startsWith(resourceProtocol))
+        if (uri.startsWith(fileProtocol)) {
+          val filePath = uri.substring(fileProtocol.length)
+          val fqFilePath = if (filePath.startsWith("/"))
+            filePath
+          else if (filePathRoot.endsWith("/"))
+            s"$filePathRoot$filePath"
+          else
+            s"$filePathRoot/$filePath"
+          loadFile(fqFilePath, env)
+        } else if (uri.startsWith(resourceProtocol))
           loadResource(uri.substring(resourceProtocol.length), env)
         else
           loadResource(uri, env)
@@ -36,7 +43,7 @@ object UriLoader {
     if (file.canRead)
       scala.io.Source.fromFile(file).mkString.successNel[ConfigError]
     else
-      ConfigError(s"Failed to read resource $uri").failureNel[String]
+      ConfigError(s"Failed to read file $uri").failureNel[String]
   }
 
   private def envVarSub(uri: String, contents: String, env: Map[String, String]): ValidationNel[ConfigError, String] = {

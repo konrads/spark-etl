@@ -44,7 +44,7 @@ object RuntimeContext extends DefaultYamlProtocol {
   /**
     * Emphasis on *maximum* validation.
     */
-  def load(_conf: Config, env: Map[String, String]): ValidationNel[ConfigError, RuntimeContext] = {
+  def load(_conf: Config, filePathRoot: String, env: Map[String, String]): ValidationNel[ConfigError, RuntimeContext] = {
     // depTree, with the known universe
     val conf = toLowerCase(_conf)
     val allExtractNames = conf.extracts.map(_.name)
@@ -71,11 +71,11 @@ object RuntimeContext extends DefaultYamlProtocol {
 
     // read in entities and add their deps
     val regExtracts = conf.extracts
-      .map(e => registerExtractDeps(e, depTree, env))
+      .map(e => registerExtractDeps(e, depTree, filePathRoot, env))
       .map(_.map(List(_))).reduce(_ +++ _)
 
     val regTransforms = conf.transforms
-      .map(t => registerTransformDeps(t, depTree, env))
+      .map(t => registerTransformDeps(t, depTree, filePathRoot, env))
       .map(_.map(List(_))).reduce(_ +++ _)
 
     conf.loads.foreach(l => depTree.addActual(l.source, Node(l.name, L)))
@@ -100,10 +100,10 @@ object RuntimeContext extends DefaultYamlProtocol {
     * Load & parse check, if specified
     * Note, extract check is only dependant on the extract
     */
-  private def registerExtractDeps(extract: Extract, depTree: DepTree, env: Map[String, String]): ValidationNel[ConfigError, RuntimeExtract] =
+  private def registerExtractDeps(extract: Extract, depTree: DepTree, filePathRoot: String, env: Map[String, String]): ValidationNel[ConfigError, RuntimeExtract] =
     extract.check match {
       case Some(checkUri) =>
-        UriLoader.load(checkUri, env)
+        UriLoader.load(checkUri, filePathRoot, env)
           .flatMap(validateResolvedDsos(depTree, extract.name, Echeck, s"extract check ${extract.name} (uri $checkUri)"))
           .map(checkTxt => RuntimeExtract(extract, Some(checkTxt)))
       case None =>
@@ -116,11 +116,11 @@ object RuntimeContext extends DefaultYamlProtocol {
     * Load & parse post_check, if specified
     * Check dso dependencies
     */
-  private def registerTransformDeps(transform: Transform, depTree: DepTree, env: Map[String, String]): ValidationNel[ConfigError, RuntimeTransform] = {
+  private def registerTransformDeps(transform: Transform, depTree: DepTree, filePathRoot: String, env: Map[String, String]): ValidationNel[ConfigError, RuntimeTransform] = {
     // load resources
-    val validatedSql = UriLoader.load(transform.sql, env)
+    val validatedSql = UriLoader.load(transform.sql, filePathRoot, env)
       .flatMap(validateResolvedDsos(depTree, transform.name, T, s"Unparsable sql of transform ${transform.name}"))
-    val validatedCheck = liftOpt(transform.check)(r => UriLoader.load(r, env)
+    val validatedCheck = liftOpt(transform.check)(r => UriLoader.load(r, filePathRoot, env)
       .flatMap(validateResolvedDsos(depTree, transform.name, Tcheck, s"Unparsable sql of transform check ${transform.name}")))
 
     (validatedSql |@| validatedCheck) { (sql, check) => RuntimeTransform(transform, sql, check) }

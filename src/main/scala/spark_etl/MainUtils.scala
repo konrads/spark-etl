@@ -13,8 +13,8 @@ import scalaz._
 object MainUtils {
   val log = org.slf4j.LoggerFactory.getLogger(getClass)
 
-  def validateLocal(confUri: String, env: Map[String, String]): Unit =
-    withCtx(confUri, env) {
+  def validateLocal(confUri: String, filePathRoot: String, env: Map[String, String]): Unit =
+    withCtx(confUri, filePathRoot, env) {
       ctx =>
         val orgExtracts = ctx.allExtracts.map(_.org)
         val extractReaderValidation = ctx.extractReader.checkLocal(orgExtracts)
@@ -31,8 +31,8 @@ object MainUtils {
         }
     }
 
-  def validateRemote(confUri: String, env: Map[String, String]): Unit =
-    withCtx(confUri, env) {
+  def validateRemote(confUri: String, filePathRoot: String, env: Map[String, String]): Unit =
+    withCtx(confUri, filePathRoot, env) {
       ctx =>
         val orgExtracts = ctx.allExtracts.map(_.org)
         val extractReaderValidation = ctx.extractReader.checkRemote(orgExtracts)
@@ -49,8 +49,8 @@ object MainUtils {
         }
     }
 
-  def transformAndLoad(confUri: String, env: Map[String, String], props: Map[String, String], showCounts: Boolean)(implicit spark: SparkSession): Unit =
-    withCtx(confUri, env) {
+  def transformAndLoad(confUri: String, filePathRoot: String, env: Map[String, String], props: Map[String, String], showCounts: Boolean)(implicit spark: SparkSession): Unit =
+    withCtx(confUri, filePathRoot, env) {
       ctx =>
         for {
           _ <- readExtracts(ctx.extractReader, ctx.allExtracts)
@@ -70,8 +70,8 @@ object MainUtils {
         } yield written
     }
 
-  def extractCheck(confUri: String, env: Map[String, String])(implicit spark: SparkSession) =
-    withCtx(confUri, env) {
+  def extractCheck(confUri: String, filePathRoot: String, env: Map[String, String])(implicit spark: SparkSession) =
+    withCtx(confUri, filePathRoot, env) {
       ctx =>
         for {
           _ <- readExtracts(ctx.extractReader, ctx.allExtracts)
@@ -83,8 +83,8 @@ object MainUtils {
         } yield ()
     }
 
-  def transformCheck(confUri: String, env: Map[String, String], showCounts: Boolean)(implicit spark: SparkSession) =
-    withCtx(confUri, env) {
+  def transformCheck(confUri: String, filePathRoot: String, env: Map[String, String], showCounts: Boolean)(implicit spark: SparkSession) =
+    withCtx(confUri, filePathRoot, env) {
       ctx =>
         for {
           _ <- readExtracts(ctx.extractReader, ctx.allExtracts)
@@ -97,10 +97,16 @@ object MainUtils {
         } yield ()
     }
 
-  private def withCtx(confUri: String, env: Map[String, String])(run: (RuntimeContext) => ValidationNel[ConfigError, Unit]): Unit = {
+  private def withCtx(confUri: String, filePathRoot: String, env: Map[String, String])(run: (RuntimeContext) => ValidationNel[ConfigError, Unit]): Unit = {
     val validatedCtx = for {
-      conf <- Config.load(confUri, env)
-      ctx  <- RuntimeContext.load(conf, env)
+      conf <- Config.load(confUri, filePathRoot, env)
+      ctx  <- {
+        val relFilePath = if (confUri.startsWith("file:"))
+          new java.io.File(confUri.substring("file:".length)).getParent
+        else
+          filePathRoot
+        RuntimeContext.load(conf, relFilePath, env)
+      }
     } yield {
       val ctxDesc =
         s"""|Validated runtime context
