@@ -6,7 +6,6 @@ import spark_etl.parser.Parser
 import spark_etl.util._
 import spark_etl.{ConfigError, ExtractReader, LoadWriter}
 
-import scala.io.Source
 import scala.util.{Failure, Success, Try}
 import scalaz.Scalaz._
 import scalaz.Validation.FlatMap._
@@ -97,17 +96,6 @@ object RuntimeContext extends DefaultYamlProtocol {
       loads = conf.loads.map(l => l.copy(source = l.source.toLowerCase))
     )
 
-  private def loadResource(uri: String, env: Map[String, String]): ValidationNel[ConfigError, String] = {
-    val fqUri = getClass.getResource(uri)
-    if (fqUri == null)
-      ConfigError(s"Failed to read resource $uri").failureNel[String]
-    else {
-      val contents = Source.fromURL(fqUri).mkString
-      val contents2 = env.foldLeft(contents) { case (soFar, (k, v)) => soFar.replaceAll("\\$\\{" + k + "\\}", v) }
-      contents2.successNel[ConfigError]
-    }
-  }
-
   /**
     * Load & parse check, if specified
     * Note, extract check is only dependant on the extract
@@ -115,7 +103,7 @@ object RuntimeContext extends DefaultYamlProtocol {
   private def registerExtractDeps(extract: Extract, depTree: DepTree, env: Map[String, String]): ValidationNel[ConfigError, RuntimeExtract] =
     extract.check match {
       case Some(checkUri) =>
-        loadResource(checkUri, env)
+        UriLoader.load(checkUri, env)
           .flatMap(validateResolvedDsos(depTree, extract.name, Echeck, s"extract check ${extract.name} (uri $checkUri)"))
           .map(checkTxt => RuntimeExtract(extract, Some(checkTxt)))
       case None =>
@@ -130,9 +118,9 @@ object RuntimeContext extends DefaultYamlProtocol {
     */
   private def registerTransformDeps(transform: Transform, depTree: DepTree, env: Map[String, String]): ValidationNel[ConfigError, RuntimeTransform] = {
     // load resources
-    val validatedSql = loadResource(transform.sql, env)
+    val validatedSql = UriLoader.load(transform.sql, env)
       .flatMap(validateResolvedDsos(depTree, transform.name, T, s"Unparsable sql of transform ${transform.name}"))
-    val validatedCheck = liftOpt(transform.check)(r => loadResource(r, env)
+    val validatedCheck = liftOpt(transform.check)(r => UriLoader.load(r, env)
       .flatMap(validateResolvedDsos(depTree, transform.name, Tcheck, s"Unparsable sql of transform check ${transform.name}")))
 
     (validatedSql |@| validatedCheck) { (sql, check) => RuntimeTransform(transform, sql, check) }
