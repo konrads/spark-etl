@@ -3,7 +3,7 @@ package spark_etl.parquet
 import java.io.File
 
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.{FileSystem, LocatedFileStatus, RemoteIterator}
+import org.apache.hadoop.fs.{FileSystem, RemoteIterator}
 import spark_etl.ConfigError
 
 import scalaz.Scalaz._
@@ -23,8 +23,10 @@ object PathValidator {
             val children = hdfsList(fs, fsPath)
             if (areValid(children))
               p.successNel[ConfigError]
+            else if (children.isEmpty)
+              ConfigError(s"hdfs path is empty for $p").failureNel[String]
             else
-              ConfigError(s"Unexpected hdfs children for $p: ${children.mkString(", ")} ").failureNel[String]
+              ConfigError(s"Unexpected hdfs children for $p: ${children.map(trimRoot(p)).mkString(", ")} ").failureNel[String]
           }
         } else {
           val ioPath = new File(p)
@@ -34,8 +36,10 @@ object PathValidator {
             val children = ioPath.list().toSeq
             if (areValid(children))
               p.successNel[ConfigError]
+            else if (children.isEmpty)
+              ConfigError(s"Local path is empty for $p").failureNel[String]
             else
-              ConfigError(s"Unexpected local children for $p: ${children.mkString(", ")}").failureNel[String]
+              ConfigError(s"Unexpected local children for $p: ${children.map(trimRoot(p)).mkString(", ")}").failureNel[String]
           }
         }
     }
@@ -55,6 +59,17 @@ object PathValidator {
           val immediateChild = relativeDescendant.split("/").head
           s"$parent/$immediateChild"
       }.toSeq.distinct
+  }
+
+  private def trimRoot(root: String)(path: String): String = {
+    val root2 = if (root.endsWith("/"))
+      root
+    else
+      root + "/"
+    if (path.startsWith(root2))
+      path.substring(root2.length)
+    else
+      path
   }
 
   private def toIterator[T](iter: RemoteIterator[T]) =

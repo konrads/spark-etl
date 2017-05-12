@@ -49,7 +49,6 @@ object RuntimeContext extends DefaultYamlProtocol {
     val conf = toLowerCase(_conf)
     val allExtractNames = conf.extracts.map(_.name)
     val allTransformNames = conf.transforms.map(_.name)
-    val allLoadNames = conf.loads.map(_.name)
     val depTree = new DepTree()
 
     // setup all candidate deps, note: checks relies on predecessors and themselves
@@ -80,13 +79,15 @@ object RuntimeContext extends DefaultYamlProtocol {
 
     conf.loads.foreach(l => depTree.addActual(l.source, Node(l.name, L)))
 
+    val validatedDuplicates = validateDuplicates(conf)
+
     val validatedDepTree = validateDepTree(depTree)
 
     val validatedExtractor = instantiate[ExtractReader](conf.extract_reader.get, classOf[ExtractReader])
 
     val validatedTransformer = instantiate[LoadWriter](conf.load_writer.get, classOf[LoadWriter])
 
-    (regExtracts |@| regTransforms |@| validatedExtractor |@| validatedTransformer |@| validatedDepTree) { (es, ts, e, t, dt) => new RuntimeContext(es, ts, conf.loads, e, t, depTree, conf)  }
+    (validatedDuplicates |@| regExtracts |@| regTransforms |@| validatedExtractor |@| validatedTransformer |@| validatedDepTree) { (dups, es, ts, e, t, dt) => new RuntimeContext(es, ts, conf.loads, e, t, depTree, conf)  }
   }
 
   private def toLowerCase(conf: Config): Config =
@@ -95,6 +96,23 @@ object RuntimeContext extends DefaultYamlProtocol {
       transforms = conf.transforms.map(t => t.copy(name = t.name.toLowerCase)),
       loads = conf.loads.map(l => l.copy(source = l.source.toLowerCase))
     )
+
+  private def validateDuplicates(conf: Config): ValidationNel[ConfigError, Unit] = {
+    def valDups(desc: String, candidates: Seq[String]): ValidationNel[ConfigError, Unit] =
+      (candidates diff candidates.distinct).distinct match {
+        case Nil   => ().successNel[ConfigError]
+        case other => ConfigError(s"Duplicates found for $desc: ${other.sorted.mkString(", ")}").failureNel[Unit]
+      }
+
+    (valDups("extract names",   conf.extracts.map(_.name))                                             |@|
+     valDups("extract uris",    conf.extracts.map(_.uri))                                              |@|
+     valDups("extract check",   conf.extracts.collect { case e if e.check.isDefined => e.check.get })  |@|
+     valDups("transform names", conf.transforms.map(_.name))                                           |@|
+     valDups("transform sqls",  conf.transforms.map(_.sql))                                            |@|
+     valDups("transform check", conf.extracts.collect { case t if t.check.isDefined => t.check.get })  |@|
+     valDups("load names",      conf.loads.map(_.name))                                                |@|
+     valDups("load uris",       conf.loads.map(_.uri))) { (_, _, _, _, _, _, _ ,_ ) => ()}
+  }
 
   /**
     * Load & parse check, if specified
@@ -150,17 +168,7 @@ object RuntimeContext extends DefaultYamlProtocol {
     } else {
       val errors = for {
         dangling <- danglingDeps
-      } yield {
-        val parentType = dangling.parent.`type` match {
-          case E => "extract"
-          case Echeck => "extract check"
-          case T => "transform"
-          case Tcheck => "transform check"
-          case L => "load"
-          case Dangling => "dangling" // should never happen
-        }
-        ConfigError(s"Unresolved dependency ${dangling.child.id} for ${parentType} ${dangling.parent.id}").failureNel[Unit]
-      }
+      } yield ConfigError(s"Unresolved dependency ${dangling.child.id} for ${dangling.parent.`type`.asStr} ${dangling.parent.id}").failureNel[Unit]
       errors.reduce(_ +++ _)
     }
   }

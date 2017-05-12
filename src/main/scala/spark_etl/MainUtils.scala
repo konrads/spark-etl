@@ -1,6 +1,6 @@
 package spark_etl
 
-import java.io.{PrintWriter, StringWriter}
+import java.io.File
 
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import spark_etl.model._
@@ -13,7 +13,7 @@ import scalaz._
 object MainUtils {
   val log = org.slf4j.LoggerFactory.getLogger(getClass)
 
-  def validateLocal(confUri: String, filePathRoot: String, env: Map[String, String]): Unit =
+  def validateLocal(confUri: String, filePathRoot: String, env: Map[String, String]): ValidationNel[ConfigError, Unit] =
     withCtx(confUri, filePathRoot, env) {
       ctx =>
         val orgExtracts = ctx.allExtracts.map(_.org)
@@ -31,7 +31,7 @@ object MainUtils {
         }
     }
 
-  def validateRemote(confUri: String, filePathRoot: String, env: Map[String, String]): Unit =
+  def validateRemote(confUri: String, filePathRoot: String, env: Map[String, String]): ValidationNel[ConfigError, Unit] =
     withCtx(confUri, filePathRoot, env) {
       ctx =>
         val orgExtracts = ctx.allExtracts.map(_.org)
@@ -49,7 +49,7 @@ object MainUtils {
         }
     }
 
-  def transformAndLoad(confUri: String, filePathRoot: String, env: Map[String, String], props: Map[String, String], showCounts: Boolean)(implicit spark: SparkSession): Unit =
+  def transformAndLoad(confUri: String, filePathRoot: String, env: Map[String, String], props: Map[String, String], showCounts: Boolean)(implicit spark: SparkSession): ValidationNel[ConfigError, Unit] =
     withCtx(confUri, filePathRoot, env) {
       ctx =>
         for {
@@ -70,7 +70,7 @@ object MainUtils {
         } yield written
     }
 
-  def extractCheck(confUri: String, filePathRoot: String, env: Map[String, String])(implicit spark: SparkSession) =
+  def extractCheck(confUri: String, filePathRoot: String, env: Map[String, String])(implicit spark: SparkSession): ValidationNel[ConfigError, Unit] =
     withCtx(confUri, filePathRoot, env) {
       ctx =>
         for {
@@ -78,12 +78,12 @@ object MainUtils {
           _ <- {
             //
             val runnableChecks = ctx.allExtracts.collect { case e if e.checkContents.isDefined => e.org.name -> e.checkContents.get }
-            runAndReport("Extract checks", runnableChecks)
+            runAndReport("Extract check results", runnableChecks)
           }
         } yield ()
     }
 
-  def transformCheck(confUri: String, filePathRoot: String, env: Map[String, String], showCounts: Boolean)(implicit spark: SparkSession) =
+  def transformCheck(confUri: String, filePathRoot: String, env: Map[String, String], showCounts: Boolean)(implicit spark: SparkSession): ValidationNel[ConfigError, Unit] =
     withCtx(confUri, filePathRoot, env) {
       ctx =>
         for {
@@ -92,19 +92,25 @@ object MainUtils {
           _ <- runCounts(transformed, showCounts)
           _ <- {
             val runnableChecks = ctx.allTransforms.collect { case t if t.checkContents.isDefined => t.org.name -> t.checkContents.get }
-            runAndReport("Transform checks", runnableChecks)
+            runAndReport("Transform check results", runnableChecks)
           }
         } yield ()
     }
 
-  private def withCtx(confUri: String, filePathRoot: String, env: Map[String, String])(run: (RuntimeContext) => ValidationNel[ConfigError, Unit]): Unit = {
+  private def withCtx(confUri: String, filePathRoot: String, env: Map[String, String])(run: (RuntimeContext) => ValidationNel[ConfigError, Unit]): ValidationNel[ConfigError, Unit] = {
     val validatedCtx = for {
       conf <- Config.load(confUri, filePathRoot, env)
       ctx  <- {
-        val relFilePath = if (confUri.startsWith("file:"))
-          new java.io.File(confUri.substring("file:".length)).getParent
-        else
-          filePathRoot
+        val relFilePath =
+          if (confUri.startsWith("file:/"))
+            new File(confUri.substring("file:".length)).getParent
+          else if (confUri.startsWith("file:"))
+            new File(confUri.substring("file:".length)).getParent match {
+              case null => filePathRoot
+              case confParent => new File(filePathRoot, confParent).getAbsolutePath
+            }
+          else
+            filePathRoot
         RuntimeContext.load(conf, relFilePath, env)
       }
     } yield {
@@ -128,14 +134,7 @@ object MainUtils {
       ctx
     }
 
-    validatedCtx.flatMap(run) match {
-      case Success(_) =>
-        log.info("Success!")
-      case Failure(errors) =>
-        val errorStr = errors.map(e => e.exc.map(exc => s"• ${e.msg}, exception: $exc\n${stacktrace(exc)}").getOrElse(s"• ${e.msg}")).toList.mkString("\n")
-        log.error(s"Failed due to:\n$errorStr")
-        System.exit(1)
-    }
+    validatedCtx.flatMap(run)
   }
 
   private def readExtracts(extractor: ExtractReader, extracts: Seq[RuntimeExtract])(implicit spark: SparkSession): ValidationNel[ConfigError, Unit] = {
@@ -176,27 +175,21 @@ object MainUtils {
         case scala.util.Failure(exc) => ConfigError("Failed to run counts", Some(exc)).failureNel[Unit]
       }
 
-  protected def runAndReport(desc: String, transformNameAndSql: Seq[(String, String)])(implicit spark: SparkSession): ValidationNel[ConfigError, Unit] =
+  protected def runAndReport(desc: String, descAndSql: Seq[(String, String)])(implicit spark: SparkSession): ValidationNel[ConfigError, Unit] =
     Try {
-      val outputs = transformNameAndSql.map {
-        case (transformName, sql) =>
+      val outputs = descAndSql.map {
+        case (sqlDesc, sql) =>
           val df = spark.sql(sql)
           val fieldDesc = df.take(100).map(r => df.schema.fields zip r.toSeq).flatMap(_.map {
             case (f, value) => f.name -> value.toString
           })
-          s"$transformName:\n${toBullets(fieldDesc)}"
+          s"$sqlDesc:\n${toBullets(fieldDesc)}"
       }
       log.info(s"$desc:\n${outputs.mkString(",")}")
     } match {
       case scala.util.Success(res) => res.successNel[ConfigError]
       case scala.util.Failure(exc) => ConfigError(s"Failed to load $desc", Some(exc)).failureNel[Unit]
     }
-
-  private def stacktrace(t: Throwable) = {
-    val w = new StringWriter
-    t.printStackTrace(new PrintWriter(w))
-    w.toString
-  }
 
   private def toBullets(kvs: Seq[(String, String)], sep: String = " -> ") =
     if (kvs.isEmpty)

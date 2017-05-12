@@ -4,4 +4,5 @@ import java.io.File
 
 object Files {
   def pwd = new File(".").getCanonicalPath
+  def rootResource = getClass.getResource("/").getFile
 }

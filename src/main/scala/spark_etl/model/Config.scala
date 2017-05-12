@@ -2,6 +2,7 @@ package spark_etl.model
 
 import net.jcazevedo.moultingyaml._
 import spark_etl.ConfigError
+import spark_etl.parquet.{ParquetExtractReader, ParquetLoadWriter}
 import spark_etl.util.UriLoader
 
 import scala.util.{Failure, Success, Try}
@@ -10,11 +11,11 @@ import scalaz.Validation.FlatMap._
 import scalaz._
 
 case class Config(
-                   extracts: List[Extract],
-                   transforms: List[Transform],
-                   loads: List[Load],
-                   extract_reader: Option[ParametrizedConstructor] = Some(ParametrizedConstructor("spark_etl.parquet.ParquetExtractReader", Some(Map.empty))),
-                   load_writer: Option[ParametrizedConstructor] = Some(ParametrizedConstructor("spark_etl.parquet.ParquetLoadWriter", Some(Map.empty))))
+  extracts: List[Extract],
+  transforms: List[Transform],
+  loads: List[Load],
+  extract_reader: Option[ParametrizedConstructor] = Some(ParametrizedConstructor(classOf[ParquetExtractReader].getName, Some(Map.empty))),
+  load_writer: Option[ParametrizedConstructor] = Some(ParametrizedConstructor(classOf[ParquetLoadWriter].getName, Some(Map.empty))))
 
 object Config extends DefaultYamlProtocol {
   implicit val yamlFormat = yamlFormat5(Config.apply)

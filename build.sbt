@@ -6,6 +6,10 @@ scalaVersion := "2.11.8"
 
 scalacOptions ++= Seq("-deprecation", "-feature")
 
+coverageMinimum := 60
+
+coverageFailOnMinimum := true
+
 libraryDependencies ++= {
   lazy val sparkVsn     = "2.1.0"
   lazy val scalazVsn    = "7.2.12"

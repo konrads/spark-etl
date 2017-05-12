@@ -14,19 +14,19 @@ object UriLoader {
   def load(uri: String, filePathRoot: String, env: Map[String, String]): ValidationNel[ConfigError, String] =
     for {
       contents <-
-        if (uri.startsWith(fileProtocol)) {
-          val filePath = uri.substring(fileProtocol.length)
-          val fqFilePath = if (filePath.startsWith("/"))
-            filePath
-          else if (filePathRoot.endsWith("/"))
-            s"$filePathRoot$filePath"
-          else
-            s"$filePathRoot/$filePath"
-          loadFile(fqFilePath, env)
-        } else if (uri.startsWith(resourceProtocol))
-          loadResource(uri.substring(resourceProtocol.length), env)
+      if (uri.startsWith(fileProtocol)) {
+        val filePath = uri.substring(fileProtocol.length)
+        val fqFilePath = if (filePath.startsWith("/"))
+          filePath
+        else if (filePathRoot.endsWith("/"))
+          s"$filePathRoot$filePath"
         else
-          loadResource(uri, env)
+          s"$filePathRoot/$filePath"
+        loadFile(fqFilePath, env)
+      } else if (uri.startsWith(resourceProtocol))
+        loadResource(uri.substring(resourceProtocol.length), env)
+      else
+        loadResource(uri, env)
       contents2 <- envVarSub(uri, contents, env)
     } yield contents2
 
@@ -47,7 +47,8 @@ object UriLoader {
   }
 
   private def envVarSub(uri: String, contents: String, env: Map[String, String]): ValidationNel[ConfigError, String] = {
-    val contents2 = env.foldLeft(contents) { case (soFar, (k, v)) => soFar.replaceAll("\\$\\{" + k + "\\}", v) }
+    // replace all ${k}, with v, ensuring v can contain '$'
+    val contents2 = env.foldLeft(contents) { case (soFar, (k, v)) => soFar.replaceAll("\\$\\{" + k + "\\}", v.replaceAll("\\$", "\\\\\\$")) }
     val remainingVars = "\\$\\{.*?\\}".r.findAllIn(contents2)
     if (remainingVars.isEmpty)
       contents2.successNel[ConfigError]

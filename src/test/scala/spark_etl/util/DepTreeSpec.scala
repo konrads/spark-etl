@@ -1,6 +1,6 @@
 package spark_etl.util
 
-import org.scalatest.{FlatSpec, Matchers, Inside}
+import org.scalatest.{FlatSpec, Inside, Matchers}
 
 class DepTreeSpec extends FlatSpec with Matchers with Inside {
   "DepTree" should "validate simple tree with no unaccounter-fors" in {

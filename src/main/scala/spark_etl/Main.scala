@@ -1,10 +1,17 @@
 package spark_etl
 
+import java.io.{PrintWriter, StringWriter}
+
 import org.apache.spark.sql._
 import org.rogach.scallop._
 import spark_etl.util.Files
 
+import scalaz.Scalaz._
+import scalaz._
+
 object Main {
+  val log = org.slf4j.LoggerFactory.getLogger(getClass)
+
   sealed trait CliCommand
   object ValidateLocal extends CliCommand
   object ValidateRemote extends CliCommand
@@ -45,7 +52,7 @@ object Main {
 
     val pwd = Files.pwd
     val env = extraProps.collect { case (k, v) if k.startsWith("env.") => k.substring("env.".length) -> v }
-    command match {
+    val res = command match {
       case ValidateLocal =>
         MainUtils.validateLocal(confUri, pwd, env)
       case ValidateRemote =>
@@ -72,5 +79,20 @@ object Main {
           spark.stop()
         }
     }
+
+    res match {
+      case Success(_) =>
+        log.info("Success!")
+      case Failure(errors) =>
+        val errorStr = errors.map(e => e.exc.map(exc => s"• ${e.msg}, exception: $exc\n${stacktrace(exc)}").getOrElse(s"• ${e.msg}")).toList.mkString("\n")
+        log.error(s"Failed due to:\n$errorStr")
+        System.exit(1)
+    }
+  }
+
+  private def stacktrace(t: Throwable) = {
+    val w = new StringWriter
+    t.printStackTrace(new PrintWriter(w))
+    w.toString
   }
 }

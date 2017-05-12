@@ -1,0 +1,32 @@
+extracts:
+  - name:  client
+    uri:   "data/dev/client_2017"
+    check: "file:../${engine}/extract-check/client.sql"
+  - name:  item
+    uri:   "data/dev/item_2017"
+    check: "file:../${engine}/extract-check/item.sql"
+  - name:  transaction
+    uri:   "data/dev/transaction_2017"
+    check: "file:../${engine}/extract-check/transaction.sql"
+
+transforms:
+  - name:  client_spending
+    check: "file:../${engine}/transform-check/client_spending.sql"
+    sql:   "file:../${engine}/transform/client_spending.sql"
+  - name:  item_purchase
+    check: "file:../${engine}/transform-check/item_purchase.sql"
+    sql:   "file:../${engine}/transform/item_purchase.sql"
+  - name:  minor_purchase
+    check: "file:../${engine}/transform-check/minor_purchase.sql"
+    sql:   "file:../${engine}/transform/minor_purchase.sql"
+
+loads:
+  - name:   client_spending_out
+    source: client_spending
+    uri:    "/tmp/out/client_spending"
+  - name:   item_purchase_out
+    source: item_purchase
+    uri:    "/tmp/out/item_purchase"
+  - name:   minor_purchase_out
+    source: minor_purchase
+    uri:    "/tmp/out/minor_purchase"

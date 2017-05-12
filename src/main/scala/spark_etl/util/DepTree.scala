@@ -37,8 +37,8 @@ class DepTree() {
   private def actualParents(`type`: ETLNode): Set[Node] =
     actuals.collect { case Rel(_, p @ Node(_, t)) if `type` == t => p }.toSet
 
-  private def actualChildren(`type`: ETLNode): Set[Node] =
-    actuals.collect { case Rel(c @ Node(_, t), p) if `type` == t => c }.toSet
+//  private def actualChildren(`type`: ETLNode): Set[Node] =
+//    actuals.collect { case Rel(c @ Node(_, t), p) if `type` == t => c }.toSet
 
   private def descendants(parent: Node): Set[Rel] = {
     val rels = actuals.collect { case r @ Rel(_, p) if parent == p => r }
@@ -46,17 +46,17 @@ class DepTree() {
     rels.toSet ++ children.flatMap(descendants)
   }
 
-  override def toString(): String =
-    s"candidates:\n -${candidates.mkString("\n -")}\nactuals:\n +${actuals.mkString("\n +")}"
+//  override def toString(): String =
+//    s"candidates:\n -${candidates.mkString("\n -")}\nactuals:\n +${actuals.mkString("\n +")}"
 }
 
 case class Node(id: String, `type`: ETLNode)
 case class Rel(child: Node, parent: Node)
 
-sealed trait ETLNode
-object E extends ETLNode { override def toString: String = "extract" }
-object Echeck extends ETLNode { override def toString: String = "extract-check" }
-object T extends ETLNode { override def toString: String = "transform" }
-object Tcheck extends ETLNode { override def toString: String = "transform-check" }
-object L extends ETLNode  { override def toString: String = "load" }
-object Dangling extends ETLNode  { override def toString: String = "dangling" }
+sealed trait ETLNode { def asStr: String }
+object E extends ETLNode { override def asStr = "extract" }
+object Echeck extends ETLNode { override def asStr = "extract-check" }
+object T extends ETLNode { override def asStr = "transform" }
+object Tcheck extends ETLNode { override def asStr = "transform-check" }
+object L extends ETLNode  { override def asStr = "load" }
+object Dangling extends ETLNode  { override def asStr = "dangling" }

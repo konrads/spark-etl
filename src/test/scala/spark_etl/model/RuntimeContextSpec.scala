@@ -13,27 +13,27 @@ class RuntimeContextSpec extends FlatSpec with Matchers with Inside {
       |extracts:
       |  - name:  client
       |    uri:   "data/dev/client_2017"
-      |    check: "/spark/extract-check/client.sql"
+      |    check: "/runtime-ctx/spark/extract-check/client.sql"
       |  - name:  item
       |    uri:   "data/dev/item_2017"
-      |    check: "/spark/extract-check/item.sql"
+      |    check: "/runtime-ctx/spark/extract-check/item.sql"
       |  - name:  transaction
       |    uri:   "data/dev/transaction_2017"
-      |    check: "/spark/extract-check/transaction.sql"
+      |    check: "/runtime-ctx/spark/extract-check/transaction.sql"
       |  # unused extract
       |  - name:  ____bogus_extract_not_loaded____
       |    uri:   "hdfs://aaa.bbb"
       |
       |transforms:
       |  - name:  client_spending
-      |    check: "/spark/transform-check/client_spending.sql"
-      |    sql:   "/spark/transform/client_spending.sql"
+      |    check: "/runtime-ctx/spark/transform-check/client_spending.sql"
+      |    sql:   "/runtime-ctx/spark/transform/client_spending.sql"
       |  - name:  item_purchase
-      |    check: "/spark/transform-check/item_purchase.sql"
-      |    sql:   "/spark/transform/item_purchase.sql"
+      |    check: "/runtime-ctx/spark/transform-check/item_purchase.sql"
+      |    sql:   "/runtime-ctx/spark/transform/item_purchase.sql"
       |  - name:  minor_purchase
-      |    check: "/spark/transform-check/minor_purchase.sql"
-      |    sql:   "/spark/transform/minor_purchase.sql"
+      |    check: "/runtime-ctx/spark/transform-check/minor_purchase.sql"
+      |    sql:   "/runtime-ctx/spark/transform/minor_purchase.sql"
       |
       |loads:
       |  - name:   client_spending_out
@@ -109,6 +109,45 @@ class RuntimeContextSpec extends FlatSpec with Matchers with Inside {
           case Failure(errs) =>
             errs.toList.length shouldBe 2
             errs.toList.forall(_.msg.startsWith("Failed to instantiate class")) shouldBe true
+        }
+    }
+  }
+
+  it should "fail on duplicates" in {
+    val confStr =
+      """
+      |extracts:
+      |  - name:  client
+      |    uri:   "data/dev/client_2017"
+      |    check: "/runtime-ctx/spark/extract-check/client.sql"
+      |  - name:  client
+      |    uri:   "data/dev/client_2017"
+      |    check: "/runtime-ctx/spark/extract-check/client.sql"
+      |
+      |transforms:
+      |  - name:  client_spending
+      |    check: "/runtime-ctx/spark/transform-check/client_spending.sql"
+      |    sql:   "/runtime-ctx/spark/transform/client_all.sql"
+      |  - name:  client_spending
+      |    check: "/runtime-ctx/spark/transform-check/client_spending.sql"
+      |    sql:   "/runtime-ctx/spark/transform/client_all.sql"
+      |
+      |loads:
+      |  - name:   client_spending_out
+      |    source: client_spending
+      |    uri:    "/tmp/out/client_spending"
+      |  - name:   client_spending_out
+      |    source: client_spending
+      |    uri:    "/tmp/out/client_spending"
+      |""".stripMargin
+
+    Config.parse(confStr) match {
+      case Success(conf) =>
+        RuntimeContext.load(conf, ".", Map.empty) match {
+          case Failure(errs) =>
+            val errList = errs.toList
+            errList.length shouldBe 8
+            errList.forall(_.msg.startsWith("Duplicates found for")) shouldBe true
         }
     }
   }
