@@ -8,7 +8,7 @@ Philosophy
 This library facilitates productionizing of configuration driven ETL pipelines. Emphasis is on:
 * configuration and SQLs treated as first class citizens
 * build time validation comprising syntactical checks of config and SQL, ensuring that SQL datasources map to configured `extract`s and `transform`s
-* run time validations comprising verification of data source (`extract`s) uris and connectivity to [LoadWriter](src/main/spark_etl/LoadWriter.scala)
+* run time validations comprising verification of data source (`extract`s) uris and connectivity to [LoadWriter](src/main/scala/spark_etl/LoadWriter.scala)
 * optional validation of `extract` datasources
 * optional validation of `transform` outputs (pre `load` writing)
 * config and SQL parametrization via `${var}` style variables, configured ar runtime via `-Denv.var=value`
