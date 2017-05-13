@@ -42,15 +42,14 @@ loads:
   - name:   client_spending_out
     source: client_spending
     uri:    "hdfs://out/client_spending"
-    # no partition_by
+    partition_by: ["date", "client_type"]
   - name:   item_purchase_out
     source: item_purchase
     uri:    "hdfs://out/item_purchase"
-    # no partition_by
+    partition_by: ["date"]
   - name:   minor_purchase_out
     source: minor_purchase
     uri:    "hdfs://out/minor_purchase"
-    # no partition_by
 
 # optional extract_reader/load_writer
 load_writer:
