@@ -1,11 +1,13 @@
 spark-etl
 ==========
 
-Tooling for configuration driven ETLs.
+Tooling for configuration and SQL transform driven Spark ETLs.
+
+Build status (master): [![Build Status](https://travis-ci.org/konrads/spark-etl.svg?branch=master)](https://travis-ci.org/konrads/spark-etl)
 
 Philosophy
 ----------
-This library facilitates productionizing of configuration driven ETL pipelines. Emphasis is on:
+This library facilitates productionizing of configuration/SQL driven Spark ETL pipelines. Emphasis is on:
 * configuration and SQLs treated as first class citizens
 * build time validation comprising syntactical checks of config and SQL, ensuring that SQL datasources map to configured `extract`s and `transform`s
 * run time validations comprising verification of data source (`extract`s) uris and connectivity to [LoadWriter](src/main/scala/spark_etl/LoadWriter.scala)
