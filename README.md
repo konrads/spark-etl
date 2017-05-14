@@ -53,11 +53,11 @@ loads:
 
 # optional extract_reader/load_writer
 load_writer:
-  class: "spark_etl.OracleLoadWriter"
+  class: "spark_etl.JdbcLoadWriter"
   params:
-    oracle_uri:          ${oracle_uri}
-    oracle_user:         ${oracle_user}
-    oracle_password:     ${oracle_password}
+    jdbc_uri:      ${jdbc_uri}
+    jdbc_user:     ${jdbc_user}
+    jdbc_password: ${jdbc_password}
 ```
 
 Setup your SQLs as per below. All SQLs are `SELECT` statements, `transform`s produce potentially sizable `Dataframes` to be persisted as `load`s, `extract-check` and `transform-check` produce smaller `Dataframees` which are loged out for visual inspection:
