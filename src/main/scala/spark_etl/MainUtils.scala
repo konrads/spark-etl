@@ -31,7 +31,7 @@ object MainUtils {
         }
     }
 
-  def validateRemote(confUri: String, filePathRoot: String, env: Map[String, String]): ValidationNel[ConfigError, Unit] =
+  def validateRemote(confUri: String, filePathRoot: String, env: Map[String, String])(implicit spark: SparkSession): ValidationNel[ConfigError, Unit] =
     withCtx(confUri, filePathRoot, env) {
       ctx =>
         val orgExtracts = ctx.allExtracts.map(_.org)
@@ -39,13 +39,31 @@ object MainUtils {
 
         val loadWriterValidation = ctx.loadWriter.checkRemote(ctx.loads)
 
-        (extractReaderValidation |@| loadWriterValidation) { (_, _) =>
+        // validate query plans with access to extract structures
+        val queryPlanValidation = for {
+          _ <- readExtracts(ctx.extractReader, ctx.allExtracts)
+          transformed <- loadTransforms(ctx.allTransforms)
+          queryPlan <- {
+            val analyzed = transformed.map {
+              case (t, df) =>
+                Try(df.queryExecution.analyzed) match {
+                  case scala.util.Success(_)   => ().successNel[ConfigError]
+                  case scala.util.Failure(exc) => ConfigError(s"Failed to analyze query execution of transform ${t.org.name}, due to ${exc.getMessage}").failureNel[Unit]
+                }
+            }
+            analyzed.reduce(_ +++ _)
+          }
+        } yield queryPlan
+
+        (extractReaderValidation |@| loadWriterValidation |@| queryPlanValidation) { (_, _, _) =>
           log.info(
             s"""Remote context validated!
                |
                |ExtractReader validated!
                |
-               |LoadWriter validated!""".stripMargin)
+               |LoadWriter validated!
+               |
+               |Query plans analyzed!""".stripMargin)
         }
     }
 

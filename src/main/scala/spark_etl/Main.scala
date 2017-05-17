@@ -44,8 +44,11 @@ object Main {
   }
 
   def main(command: CliCommand, confUri: String, extraProps: Map[String, String], shouldCount: Boolean): Unit = {
-    def createSpark(name: String, props: Map[String, String]): SparkSession = {
-      val builder = SparkSession.builder.appName(name)
+    def createSpark(name: String, props: Map[String, String], isMaster: Boolean): SparkSession = {
+      val builder = if (isMaster)
+        SparkSession.builder.master("local[1]").appName(name)
+      else
+        SparkSession.builder.appName(name)
       props.collect { case (k, v) if k.startsWith("spark.") => builder.config(k, v) }
       builder.getOrCreate
     }
@@ -56,23 +59,28 @@ object Main {
       case ValidateLocal =>
         MainUtils.validateLocal(confUri, pwd, env)
       case ValidateRemote =>
-        MainUtils.validateRemote(confUri, pwd, env)
+        implicit val spark = createSpark(className, extraProps, true)
+        try {
+          MainUtils.validateRemote(confUri, pwd, env)
+        } finally {
+          spark.stop()
+        }
       case TransformLoad =>
-        implicit val spark = createSpark(className, extraProps)
+        implicit val spark = createSpark(className, extraProps, false)
         try {
           MainUtils.transformAndLoad(confUri, pwd, env, extraProps, shouldCount)
         } finally {
           spark.stop()
         }
       case ExtractCheck =>
-        implicit val spark = createSpark(className, extraProps)
+        implicit val spark = createSpark(className, extraProps, false)
         try {
           MainUtils.extractCheck(confUri, pwd, env)
         } finally {
           spark.stop()
         }
       case TransformCheck =>
-        implicit val spark = createSpark(className, extraProps)
+        implicit val spark = createSpark(className, extraProps, false)
         try {
           MainUtils.transformCheck(confUri, pwd, env, shouldCount)
         } finally {
