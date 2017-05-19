@@ -82,7 +82,7 @@ object PathValidator {
     lazy val hasValidChildren = paths.forall {
       path =>
         val lastElem = path.split("/").last
-        lastElem == "_temporary" || lastElem.contains("=")
+        lastElem == "_temporary" || lastElem == "_SUCCESS" || lastElem == "._SUCCESS.crc" || lastElem.contains("=")
     }
     paths.nonEmpty && hasValidChildren
   }

@@ -1,0 +1,12 @@
+extracts:
+  - name:  x
+    uri:   "${path}/x"
+
+transforms:
+  - name:  transform
+    sql:   "/parquet-roundtrip/transform/t.sql"
+
+loads:
+  - name:   y
+    source: transform
+    uri:    "${path}/y"
