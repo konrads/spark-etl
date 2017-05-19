@@ -24,6 +24,7 @@ extracts:
   - name:  client
     uri:   "hdfs://${path}/client_2017"
     check: "/spark/extract-check/client.sql"
+    cache: true
   - name:  item
     uri:   "hdfs://${path}/item_2017"
   - name:  transaction
@@ -37,21 +38,20 @@ transforms:
   - name:  minor_purchase
     check: "/spark/transform-check/minor_purchase.sql"
     sql:   "/spark/transform/minor_purchase.sql"
+    cache: true
 
 loads:
   - name:   client_spending_out
     source: client_spending
     uri:    "hdfs://out/client_spending"
-    partition_by: ["date", "client_type"]
+    partition_by: ["col1", "col2"]
   - name:   item_purchase_out
     source: item_purchase
     uri:    "hdfs://out/item_purchase"
-    partition_by: ["date"]
   - name:   minor_purchase_out
     source: minor_purchase
     uri:    "hdfs://out/minor_purchase"
 
-# optional extract_reader/load_writer
 load_writer:
   class: "spark_etl.JdbcLoadWriter"
   params:

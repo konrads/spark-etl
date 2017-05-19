@@ -18,9 +18,11 @@ class ConfigSpec extends FlatSpec with Matchers with Inside {
       s"""extracts:
          |  - name: e1
          |    uri: e1_uri
+         |    cache: true
          |
          |transforms:
          |  - name: t1
+         |    cache: false
          |    sql: t1_uri
          |
          |loads:
@@ -29,8 +31,8 @@ class ConfigSpec extends FlatSpec with Matchers with Inside {
          |    uri: l1_uri
        """.stripMargin
     Config.parse(simpleConfig) shouldBe Success(Config(
-      List(Extract("e1", "e1_uri")),
-      List(Transform("t1", "t1_uri")),
+      List(Extract("e1", "e1_uri", Some(true))),
+      List(Transform("t1", "t1_uri", Some(false))),
       List(Load("l1", "t1", "l1_uri"))
     ))
   }

@@ -2,7 +2,7 @@ package spark_etl
 
 import java.io.File
 
-import org.apache.spark.sql.{DataFrame, SparkSession}
+import org.apache.spark.sql.{AnalysisException, DataFrame, SparkSession}
 import spark_etl.model._
 
 import scala.util.Try
@@ -18,9 +18,7 @@ object MainUtils {
       ctx =>
         val orgExtracts = ctx.allExtracts.map(_.org)
         val extractReaderValidation = ctx.extractReader.checkLocal(orgExtracts)
-
         val loadWriterValidation = ctx.loadWriter.checkLocal(ctx.loads)
-
         (extractReaderValidation |@| loadWriterValidation) { (_, _) =>
           log.info(
             s"""Local context validated!
@@ -36,26 +34,20 @@ object MainUtils {
       ctx =>
         val orgExtracts = ctx.allExtracts.map(_.org)
         val extractReaderValidation = ctx.extractReader.checkRemote(orgExtracts)
-
         val loadWriterValidation = ctx.loadWriter.checkRemote(ctx.loads)
-
-        // validate query plans with access to extract structures
-        val queryPlanValidation = for {
-          _ <- readExtracts(ctx.extractReader, ctx.allExtracts)
-          transformed <- loadTransforms(ctx.allTransforms)
-          queryPlan <- {
-            val analyzed = transformed.map {
-              case (t, df) =>
-                Try(df.queryExecution.analyzed) match {
-                  case scala.util.Success(_)   => ().successNel[ConfigError]
-                  case scala.util.Failure(exc) => ConfigError(s"Failed to analyze query execution of transform ${t.org.name}, due to ${exc.getMessage}").failureNel[Unit]
-                }
-            }
-            analyzed.reduce(_ +++ _)
+        for {
+          _ <- (extractReaderValidation |@| loadWriterValidation) { (_, _) => () }
+          _ <- {
+            // for validation - do not persist
+            val withoutCache = ctx.allExtracts.map(e => e.copy(org = e.org.copy(cache = None)))
+            readExtracts(ctx.extractReader, withoutCache)
           }
-        } yield queryPlan
-
-        (extractReaderValidation |@| loadWriterValidation |@| queryPlanValidation) { (_, _, _) =>
+          _ <- {
+            // for validation - do not persist
+            val withoutCache = ctx.allTransforms.map(t => t.copy(org = t.org.copy(cache = None)))
+            loadTransforms(withoutCache)
+          }
+        } yield {
           log.info(
             s"""Remote context validated!
                |
@@ -63,7 +55,7 @@ object MainUtils {
                |
                |LoadWriter validated!
                |
-               |Query plans analyzed!""".stripMargin)
+               |Transforms loaded in session!""".stripMargin)
         }
     }
 
@@ -83,9 +75,10 @@ object MainUtils {
             ctx.loadWriter.write(loadsAndDfs)
           } match {
             case scala.util.Success(_) => ().successNel[ConfigError]
+            case scala.util.Failure(exc:AnalysisException) => ConfigError(s"Failed to write out transform due to AnalysisException, ${exc.getMessage}").failureNel[Seq[(RuntimeTransform, DataFrame)]]
             case scala.util.Failure(e) => ConfigError("Failed to write out transform", Some(e)).failureNel[Unit]
           }
-        } yield written
+        } yield ()
     }
 
   def extractCheck(confUri: String, filePathRoot: String, env: Map[String, String])(implicit spark: SparkSession): ValidationNel[ConfigError, Unit] =
@@ -161,6 +154,7 @@ object MainUtils {
       extractor.read(orgExtracts).foreach {
         case (e, df) =>
           df.createOrReplaceTempView(e.name)
+          e.cache.foreach(c => if (c) spark.sql(s"CACHE TABLE ${e.name}"))
       }
     } match {
       case scala.util.Success(res) => res.successNel[ConfigError]
@@ -174,10 +168,12 @@ object MainUtils {
         t =>
           val df = spark.sql(t.sqlContents)
           df.createOrReplaceTempView(t.org.name)
+          t.org.cache.foreach(c => if (c) spark.sql(s"CACHE TABLE ${t.org.name}"))
           (t, df)
       }
     } match {
       case scala.util.Success(res) => res.successNel[ConfigError]
+      case scala.util.Failure(exc:AnalysisException) => ConfigError(s"Failed to run transforms due to AnalysisException, ${exc.getMessage}").failureNel[Seq[(RuntimeTransform, DataFrame)]]
       case scala.util.Failure(exc) => ConfigError("Failed to run transforms", Some(exc)).failureNel[Seq[(RuntimeTransform, DataFrame)]]
     }
 

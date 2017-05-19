@@ -6,6 +6,7 @@ import org.apache.spark.sql._
 import org.rogach.scallop._
 import spark_etl.util.Files
 
+import scala.util.Random
 import scalaz.Scalaz._
 import scalaz._
 
@@ -46,9 +47,10 @@ object Main {
   def main(command: CliCommand, confUri: String, extraProps: Map[String, String], shouldCount: Boolean): Unit = {
     def createSpark(name: String, props: Map[String, String], isMaster: Boolean): SparkSession = {
       val builder = if (isMaster)
-        SparkSession.builder.master("local[1]").appName(name)
-      else
-        SparkSession.builder.appName(name)
+          SparkSession.builder.appName(name).master("local[1]").config("spark.ui.port", random(4041, 4999)).config("spark.history.ui.port", random(18080, 19000))
+        else
+          SparkSession.builder.appName(name)
+      if (isMaster)
       props.collect { case (k, v) if k.startsWith("spark.") => builder.config(k, v) }
       builder.getOrCreate
     }
@@ -103,4 +105,7 @@ object Main {
     t.printStackTrace(new PrintWriter(w))
     w.toString
   }
+
+  private val rand = new Random(System.currentTimeMillis)
+  private def random(min: Int, max: Int) = min + rand.nextInt(max - min)
 }

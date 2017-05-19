@@ -36,6 +36,7 @@ CMD="$SPARK_HOME/bin/spark-submit \
 --conf spark.sql.parquet.compression.codec=snappy \
 --conf spark.sql.inMemoryColumnarStorage.compressed=true \
 --conf spark.sql.inMemoryColumnarStorage.batchSize=100000 \
+--conf spark.sql.crossJoin.enabled=true \
 --conf spark.task.maxFailures=20 \
 --master yarn \
 --deploy-mode cluster \
@@ -90,7 +91,6 @@ package_logs() {
       yarn logs --applicationId $app_id > logs/$app_id/$app_id.remote.log
       cd logs/$app_id
       zip logs_$app_id.zip *.log
-      rm *.log
       cd ../..
       log_bold "Logs available at logs/$app_id/logs_$app_id.zip"
     fi
