@@ -23,7 +23,6 @@ libraryDependencies ++= {
     "org.rogach"       %% "scallop"           % "2.0.2",
 
     // testing
-    "org.scalatest"    %% "scalatest"         % scalaTestVsn % "test",
-    "org.scalacheck"   %% "scalacheck"        % "1.13.4"     % "test"
+    "org.scalatest"    %% "scalatest"         % scalaTestVsn % "test"
   )
 }

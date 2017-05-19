@@ -39,13 +39,13 @@ object MainUtils {
           _ <- (extractReaderValidation |@| loadWriterValidation) { (_, _) => () }
           _ <- {
             // for validation - do not persist
-            val withoutCache = ctx.allExtracts.map(e => e.copy(org = e.org.copy(cache = None)))
-            readExtracts(ctx.extractReader, withoutCache)
+            val withoutCacheOrPersist = ctx.allExtracts.map(e => e.copy(org = e.org.copy(cache = None, persist = None)))
+            readExtracts(ctx.extractReader, withoutCacheOrPersist)
           }
           _ <- {
             // for validation - do not persist
-            val withoutCache = ctx.allTransforms.map(t => t.copy(org = t.org.copy(cache = None)))
-            loadTransforms(withoutCache)
+            val withoutCacheOrPersist = ctx.allTransforms.map(t => t.copy(org = t.org.copy(cache = None, persist = None)))
+            loadTransforms(withoutCacheOrPersist)
           }
         } yield {
           log.info(
@@ -153,8 +153,9 @@ object MainUtils {
     Try {
       extractor.read(orgExtracts).foreach {
         case (e, df) =>
+          e.cache.foreach(c => if (c) df.cache())
+          e.persist.foreach(p => df.persist(p.asSpark))
           df.createOrReplaceTempView(e.name)
-          e.cache.foreach(c => if (c) spark.sql(s"CACHE TABLE ${e.name}"))
       }
     } match {
       case scala.util.Success(res) => res.successNel[ConfigError]
@@ -167,8 +168,9 @@ object MainUtils {
       transforms.map {
         t =>
           val df = spark.sql(t.sqlContents)
+          t.org.cache.foreach(c => if (c) df.cache())
+          t.org.persist.foreach(p => df.persist(p.asSpark))
           df.createOrReplaceTempView(t.org.name)
-          t.org.cache.foreach(c => if (c) spark.sql(s"CACHE TABLE ${t.org.name}"))
           (t, df)
       }
     } match {

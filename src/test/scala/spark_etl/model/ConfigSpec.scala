@@ -19,11 +19,13 @@ class ConfigSpec extends FlatSpec with Matchers with Inside {
          |  - name: e1
          |    uri: e1_uri
          |    cache: true
+         |    persist: MEMORY_ONLY
          |
          |transforms:
          |  - name: t1
          |    cache: false
          |    sql: t1_uri
+         |    persist: DISK_ONLY
          |
          |loads:
          |  - name: l1
@@ -31,8 +33,8 @@ class ConfigSpec extends FlatSpec with Matchers with Inside {
          |    uri: l1_uri
        """.stripMargin
     Config.parse(simpleConfig) shouldBe Success(Config(
-      List(Extract("e1", "e1_uri", Some(true))),
-      List(Transform("t1", "t1_uri", Some(false))),
+      List(Extract("e1", "e1_uri", Some(true), Some(Persist.MEMORY_ONLY))),
+      List(Transform("t1", "t1_uri", Some(false), Some(Persist.DISK_ONLY))),
       List(Load("l1", "t1", "l1_uri"))
     ))
   }
