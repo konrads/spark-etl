@@ -23,6 +23,7 @@ RT=$(date --date="6:00 today" --iso-8601=seconds | cut -f1 -d'+')
 TIMESTAMP="${RT}Australia/Sydney"
 
 CMD="$SPARK_HOME/bin/spark-submit \
+--conf spark.debug.maxToStringFields=1024 \
 --conf spark.driver.extraJavaOptions='-XX:PermSize=512m -XX:MaxPermSize=512m' \
 --conf spark.yarn.maxAppAttempts=1 \
 --conf spark.yarn.max.executor.failures=200 \
