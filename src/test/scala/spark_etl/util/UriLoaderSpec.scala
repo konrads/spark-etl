@@ -39,6 +39,26 @@ class UriLoaderSpec extends FlatSpec with Matchers with Inside {
     validateNotExists("file:/bogus_uri", Files.pwd)
   }
 
+  it should "read #includes" in {
+    val expected =
+      """|===
+         |hello there
+         |123
+         |
+         |---
+         |111 val1 222 val2 333 val1 444
+         |
+         |+++""".stripMargin
+    UriLoader.load("/uri-loader/with_includes", "__ignore__", Map("var1" -> "val1", "var2" -> "val2")) shouldBe expected.successNel[ConfigError]
+  }
+
+  it should "read fail on bogus #include" in {
+    inside(UriLoader.load("/uri-loader/with_bogus_includes", "__ignore__", Map("var1" -> "val1", "var2" -> "val2"))) {
+      case Failure(err) =>
+        err.toList shouldBe List(ConfigError("Failed to read resource __bogus_include__"))
+    }
+  }
+
   private def validateWithoutVars(uri: String, fileRoot: String) = {
     UriLoader.load(uri, fileRoot, Map("var1" -> "val1")) shouldBe "hello there\n123\n".successNel[ConfigError]
   }

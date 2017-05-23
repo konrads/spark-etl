@@ -27,8 +27,19 @@ object UriLoader {
         loadResource(uri.substring(resourceProtocol.length), env)
       else
         loadResource(uri, env)
-      contents2 <- envVarSub(uri, contents, env)
-    } yield contents2
+      withIncludes <- {
+        // load #include<xxx>
+        val includePattern = "(?m)^\\s*#include\\s*<(.+)>.*$".r
+        val includeUris = includePattern.findAllIn(contents).matchData.map(_.group(1))
+        if (includeUris.isEmpty)
+          contents.successNel[ConfigError]
+        else {
+          val byUriIncludes = getIncludes(includeUris, filePathRoot, env)
+          byUriIncludes.map(includes => includePattern.replaceAllIn(contents, m => includes(m.group(1))))
+        }
+      }
+      withEnvVars <- envVarSub(uri, withIncludes, env)
+    } yield withEnvVars
 
   private def loadResource(uri: String, env: Map[String, String]): ValidationNel[ConfigError, String] = {
     val fqUri = getClass.getResource(uri)
@@ -56,5 +67,9 @@ object UriLoader {
       val varNames = remainingVars.toList.distinct
       ConfigError(s"Unresolved env vars in $uri: ${varNames.mkString(", ")}").failureNel[String]
     }
+  }
+
+  private def getIncludes(uris: Iterator[String], filePathRoot: String, env: Map[String, String]): ValidationNel[ConfigError, Map[String, String]] = {
+    uris.map(uri => load(uri, filePathRoot, env).map(contents => Map(uri -> contents))).reduce(_ +++ _)
   }
 }
