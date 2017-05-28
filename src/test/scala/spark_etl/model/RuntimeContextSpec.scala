@@ -161,6 +161,7 @@ class RuntimeContextSpec extends FlatSpec with Matchers with Inside {
             ctx.asDot shouldBe
             """digraph Lineage {
               |  rankdir=LR
+              |  node [fontsize=12]
               |
               |  # edges
               |  client -> client_spending [style=dotted]

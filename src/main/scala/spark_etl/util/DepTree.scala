@@ -34,7 +34,7 @@ class DepTree() {
     candidates.intersect(nonDangs).toSet
   }
 
-  def asDot(name: String = "Lineage"): String = {
+  def asDot(name: String = "Lineage", fontSize: Int = 12): String = {
     val plottableEdgeTypes = Set(E, T, L)
     val plottableEdges = actuals.filter(e => plottableEdgeTypes.contains(e.child.`type`) && plottableEdgeTypes.contains(e.parent.`type`))
     val plottableVertices = plottableEdges.map(_.child) ++ actuals.map(_.parent)
@@ -57,6 +57,7 @@ class DepTree() {
     }
     s"""digraph $name {
       |  rankdir=LR
+      |  node [fontsize=$fontSize]
       |
       |  # edges
       |  ${edges.toList.sorted.mkString("\n  ")}
