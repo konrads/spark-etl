@@ -82,6 +82,12 @@ src -+
                |
                +- minor_purchase.sql   # NOTE: optional transform validation!
 ```
+
+Generate lineage in dot format:
+```
+sbt "run-main spark_etl.Main -Denv.path=some_path lineage-dot"
+```
+
 Validate local config/SQLs. Suggested use is to run this as part of the build, with validation failure stopping the build:
 ```
 sbt "run-main spark_etl.Main -Denv.path=some_path validate-local"

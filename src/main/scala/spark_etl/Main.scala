@@ -14,6 +14,7 @@ object Main {
   val log = org.slf4j.LoggerFactory.getLogger(getClass)
 
   sealed trait CliCommand
+  object LineageDot extends CliCommand
   object ValidateLocal extends CliCommand
   object ValidateRemote extends CliCommand
   object TransformLoad extends CliCommand
@@ -21,6 +22,7 @@ object Main {
   object TransformCheck extends CliCommand
   object CliCommand {
     implicit val cliCommandConverter = singleArgConverter[CliCommand] {
+      case "lineage-dot"     => LineageDot
       case "validate-local"  => ValidateLocal
       case "validate-remote" => ValidateRemote
       case "transform-load"  => TransformLoad
@@ -32,19 +34,20 @@ object Main {
   val className = getClass.getSimpleName
   class CliConf(args: Seq[String]) extends ScallopConf(args) {
     banner(s"""Usage: $className [OPTIONS] (all options required unless otherwise indicated)\n\tOptions:""")
-    val extraProps = props[String]()
-    val confUri    = opt[String](name = "conf-uri", descr = "configuration resource uri", default = Some("/app.yaml"))
-    val count      = toggle(name = "count", descrYes = "enable transform counts", default = Some(false))
-    val command    = trailArg[CliCommand](name = "command", descr = "command")
+    val extraProps  = props[String]()
+    val confUri     = opt[String](name = "conf-uri", descr = "configuration resource uri", default = Some("/app.yaml"))
+    val lineageFile = opt[String](name = "lineage-file", descr = "target lineage dot file", default = Some("lineage.dot"))
+    val count       = toggle(name = "count", descrYes = "enable transform counts", default = Some(false))
+    val command     = trailArg[CliCommand](name = "command", descr = "command")
     verify()
   }
 
   def main(args: Array[String]): Unit = {
     val conf = new CliConf(args)
-    main(conf.command(), conf.confUri(), conf.extraProps, conf.count())
+    main(conf.command(), conf.confUri(), conf.extraProps, conf.count(), conf.lineageFile())
   }
 
-  def main(command: CliCommand, confUri: String, extraProps: Map[String, String], shouldCount: Boolean): Unit = {
+  def main(command: CliCommand, confUri: String, extraProps: Map[String, String], shouldCount: Boolean, lineageFile: String): Unit = {
     def createSpark(name: String, props: Map[String, String], isMaster: Boolean): SparkSession = {
       val builder = if (isMaster)
           SparkSession.builder.appName(name).master("local[1]").config("spark.ui.port", random(4041, 4999)).config("spark.history.ui.port", random(18080, 19000))
@@ -58,6 +61,8 @@ object Main {
     val pwd = Files.pwd
     val env = extraProps.collect { case (k, v) if k.startsWith("env.") => k.substring("env.".length) -> v }
     val res = command match {
+      case LineageDot =>
+        MainUtils.dotLineage(confUri, pwd, env, lineageFile)
       case ValidateLocal =>
         MainUtils.validateLocal(confUri, pwd, env)
       case ValidateRemote =>

@@ -1,8 +1,9 @@
 package spark_etl
 
-import java.io.File
+import java.io.{File, PrintWriter}
 
 import org.apache.spark.sql.{AnalysisException, DataFrame, SparkSession}
+import spark_etl.MainUtils.withCtx
 import spark_etl.model._
 
 import scala.util.Try
@@ -12,6 +13,16 @@ import scalaz._
 
 object MainUtils {
   val log = org.slf4j.LoggerFactory.getLogger(getClass)
+
+  def dotLineage(confUri: String, filePathRoot: String, env: Map[String, String], filename: String): ValidationNel[ConfigError, Unit] =
+    withCtx(confUri, filePathRoot, env) {
+      ctx =>
+        new PrintWriter(filename) {
+          write(ctx.asDot)
+          close
+        }
+        ().successNel[ConfigError]
+    }
 
   def validateLocal(confUri: String, filePathRoot: String, env: Map[String, String]): ValidationNel[ConfigError, Unit] =
     withCtx(confUri, filePathRoot, env) {

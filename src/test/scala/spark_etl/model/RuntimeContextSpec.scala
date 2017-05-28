@@ -151,6 +151,50 @@ class RuntimeContextSpec extends FlatSpec with Matchers with Inside {
         }
     }
   }
+
+  it should "produce dot file" in {
+    Config.parse(extractsAndTransformsStr) match {
+      case Success(conf) =>
+        RuntimeContext.load(conf, ".", Map.empty) match {
+          case Success(ctx) =>
+            val v = ctx.asDot
+            ctx.asDot shouldBe
+            """digraph Lineage {
+              |  rankdir=LR
+              |
+              |  # edges
+              |  client -> client_spending [style=dotted]
+              |  client -> item_purchase [style=dotted]
+              |  client -> minor_purchase [style=dotted]
+              |  client_spending -> client_spending_out
+              |  item -> client_spending [style=dotted]
+              |  item -> item_purchase [style=dotted]
+              |  item -> minor_purchase [style=dotted]
+              |  item_purchase -> item_purchase_out
+              |  minor_purchase -> minor_purchase_out
+              |  transaction -> client_spending [style=dotted]
+              |  transaction -> item_purchase [style=dotted]
+              |  transaction -> minor_purchase [style=dotted]
+              |
+              |  # vertices
+              |  client
+              |  client_spending [shape=component]
+              |  client_spending_out [shape=cylinder]
+              |  item
+              |  item_purchase [shape=component]
+              |  item_purchase_out [shape=cylinder]
+              |  minor_purchase [shape=component]
+              |  minor_purchase_out [shape=cylinder]
+              |  transaction
+              |
+              |  # ranks
+              |  { rank=same; item_purchase_out client_spending_out minor_purchase_out }
+              |  { rank=same; transaction item client }
+              |}""".stripMargin
+        }
+    }
+
+  }
 }
 
 class OkExtractReader(val params: Map[String, Any]) extends ExtractReader(params) {

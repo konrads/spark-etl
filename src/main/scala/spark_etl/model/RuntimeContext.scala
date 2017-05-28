@@ -37,6 +37,7 @@ class RuntimeContext(extracts: List[RuntimeExtract], transforms: List[RuntimeTra
       if r.parent.id == l.name
     } yield l).toList
 
+  def asDot = depTree.asDot()
 }
 
 object RuntimeContext extends DefaultYamlProtocol {
@@ -52,19 +53,19 @@ object RuntimeContext extends DefaultYamlProtocol {
     val depTree = new DepTree()
 
     // setup all candidate deps, note: checks relies on predecessors and themselves
-    conf.extracts.foreach(e => depTree.addCandidate(Rel(Node(e.name, E), Node(e.name, Echeck))))
+    conf.extracts.foreach(e => depTree.addCandidate(Edge(Vertice(e.name, E), Vertice(e.name, Echeck))))
 
     allTransformNames.foldLeft(List.empty[String]) {
       case (predTs, t) =>
         // E -> T
-        allExtractNames.foreach(eName => depTree.addCandidate(Rel(Node(eName, E), Node(t, T))))
-        predTs.foreach(predT => depTree.addCandidate(Rel(Node(predT, T), Node(t, T))))
+        allExtractNames.foreach(eName => depTree.addCandidate(Edge(Vertice(eName, E), Vertice(t, T))))
+        predTs.foreach(predT => depTree.addCandidate(Edge(Vertice(predT, T), Vertice(t, T))))
         val predTs2 = predTs :+ t
         // E -> Tcheck
-        allExtractNames.foreach(eName => depTree.addCandidate(Rel(Node(eName, E), Node(t, Tcheck))))
-        predTs2.foreach(predT => depTree.addCandidate(Rel(Node(predT, T), Node(t, Tcheck))))
+        allExtractNames.foreach(eName => depTree.addCandidate(Edge(Vertice(eName, E), Vertice(t, Tcheck))))
+        predTs2.foreach(predT => depTree.addCandidate(Edge(Vertice(predT, T), Vertice(t, Tcheck))))
         // T -> L
-        conf.loads.foreach(l => depTree.addCandidate(Rel(Node(t, T), Node(l.name, L))))
+        conf.loads.foreach(l => depTree.addCandidate(Edge(Vertice(t, T), Vertice(l.name, L))))
         predTs2
     }
 
@@ -77,7 +78,7 @@ object RuntimeContext extends DefaultYamlProtocol {
       .map(t => registerTransformDeps(t, depTree, filePathRoot, env))
       .map(_.map(List(_))).reduce(_ +++ _)
 
-    conf.loads.foreach(l => depTree.addActual(l.source, Node(l.name, L)))
+    conf.loads.foreach(l => depTree.addActual(l.source, Vertice(l.name, L)))
 
     val validatedDuplicates = validateDuplicates(conf)
 
@@ -150,10 +151,10 @@ object RuntimeContext extends DefaultYamlProtocol {
       case None => None.successNel[ConfigError]
     }
 
-  private def validateResolvedDsos(depTree: DepTree, name: String, node: ETLNode, errMsgPrefix: String)(contents: String): ValidationNel[ConfigError, String] =
+  private def validateResolvedDsos(depTree: DepTree, name: String, node: ETLVertice, errMsgPrefix: String)(contents: String): ValidationNel[ConfigError, String] =
     Try(Parser.getDsos(contents)) match {
       case Success(usedDsos) =>
-        usedDsos.map(_.toLowerCase).foreach(d => depTree.addActual(d, Node(name, node)))
+        usedDsos.map(_.toLowerCase).foreach(d => depTree.addActual(d, Vertice(name, node)))
         contents.successNel[ConfigError]
       case Failure(e: ParseException) =>
         ConfigError(s"$errMsgPrefix: failed to parse, error: ${e.getMessage}").failureNel[String]
