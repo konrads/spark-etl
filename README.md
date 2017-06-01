@@ -98,7 +98,7 @@ Deploy to cluster, with read access to `hdfs://some_path`, write access to `hdfs
 run.sh -Denv.path=some_path validate-remote
 ```
 
-Run extract and transform validations on the cluster:
+Run extract and transform validations on the cluster. The following will fail *only* if any of the return set rows contains a `false`:
 ```
 run.sh -Denv.path=some_path extract-check
 run.sh -Denv.path=some_path transform-check

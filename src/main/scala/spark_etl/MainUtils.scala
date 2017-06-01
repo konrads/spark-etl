@@ -3,7 +3,6 @@ package spark_etl
 import java.io.{File, PrintWriter}
 
 import org.apache.spark.sql.{AnalysisException, DataFrame, SparkSession}
-import spark_etl.MainUtils.withCtx
 import spark_etl.model._
 
 import scala.util.Try
@@ -207,14 +206,19 @@ object MainUtils {
       val outputs = descAndSql.map {
         case (sqlDesc, sql) =>
           val df = spark.sql(sql)
-          val fieldDesc = df.take(100).map(r => df.schema.fields zip r.toSeq).flatMap(_.map {
-            case (f, value) => f.name -> value.toString
+          val valFieldDesc = df.take(100).map(r => df.schema.fields zip r.toSeq).flatMap(_.map {
+            // Fail on false only, succeed and report on all others
+            case (f, false) =>
+              ConfigError(s"$desc: $sqlDesc's check ${f.name} returned false!").failureNel[(String, String)]
+            case (f, value) =>
+              (f.name -> value.toString).successNel[ConfigError]
           })
-          s"$sqlDesc:\n${toBullets(fieldDesc)}"
+          val valRes = valFieldDesc.map(_.map(List(_))).reduce(_ +++ _)
+          valRes.map(fieldDesc => s"$sqlDesc:\n${toBullets(fieldDesc)}")
       }
-      log.info(s"$desc:\n${outputs.mkString(",")}")
+      outputs.map(_.map(List(_))).reduce(_ +++ _)
     } match {
-      case scala.util.Success(res) => res.successNel[ConfigError]
+      case scala.util.Success(res) => res.map(outputs => log.info(s"$desc:\n${outputs.mkString("\n")}"))
       case scala.util.Failure(exc) => ConfigError(s"Failed to load $desc", Some(exc)).failureNel[Unit]
     }
 
