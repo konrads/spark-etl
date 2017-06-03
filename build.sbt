@@ -16,8 +16,8 @@ libraryDependencies ++= {
   lazy val scalaTestVsn = "3.0.3"
   Seq(
     // core
-    "org.apache.spark" %% "spark-core"        % sparkVsn     % "compile",
-    "org.apache.spark" %% "spark-sql"         % sparkVsn     % "compile",
+    "org.apache.spark" %% "spark-core"        % sparkVsn     % "provided",
+    "org.apache.spark" %% "spark-sql"         % sparkVsn     % "provided",
     "org.scalaz"       %% "scalaz-core"       % scalazVsn,
     "net.jcazevedo"    %% "moultingyaml"      % "0.4.0",
     "org.rogach"       %% "scallop"           % "2.0.2",
