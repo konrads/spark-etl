@@ -6,14 +6,19 @@ import spark_etl.util.Validation
 import spark_etl.util.Validation._
 import spark_etl.{ConfigError, ExtractReader}
 
-class ParquetExtractReader(params: Map[String, String]) extends ExtractReader(params) {
+import scala.util.Try
+
+class ParquetExtractReader(params: Map[String, Any]) extends ExtractReader(params) {
+  val checkChildren = Try(params("check-children").asInstanceOf[Boolean]).getOrElse(false)
+  val expectPartition = Try(params("expect-partition").asInstanceOf[Boolean]).getOrElse(false)
+
   // nothing to validate
   override def checkLocal(extracts: Seq[Extract]): Validation[ConfigError, Unit] =
     ().success[ConfigError]
 
   override def checkRemote(extracts: Seq[Extract]): Validation[ConfigError, Unit] = {
     val parquetUris = extracts.map(_.uri)
-    PathValidator.validate(parquetUris: _*).map(_ => ())
+    PathValidator.validate(checkChildren, expectPartition, parquetUris: _*).map(_ => ())
   }
 
   override def read(extracts: Seq[Extract])(implicit spark: SparkSession): Seq[(Extract, DataFrame)] = {

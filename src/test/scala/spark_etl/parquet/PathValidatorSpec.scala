@@ -15,12 +15,16 @@ class PathValidatorSpec extends FlatSpec with Matchers with Inside {
 
   "PathValidator" should "validate local `good` path" in {
     PathValidator.validate(
+      true,
+      true,
       s"$root/parquet/good"
     ) shouldBe Success(List(s"$root/parquet/good"))
   }
 
   it should "validate local `bad` path" in {
     val res = PathValidator.validate(
+      true,
+      true,
       s"$root/parquet/empty",
       s"$root/parquet/with_backup_dir",
       s"$root/parquet/__bogus_dir__"

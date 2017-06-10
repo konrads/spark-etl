@@ -8,39 +8,49 @@ import spark_etl.ConfigError
 import spark_etl.util.Validation
 import spark_etl.util.Validation._
 
+/**
+  * Validate parquet paths on hdfs and local.
+  * - validates path
+  * - (optionally) validates path children
+  *   - expects children to be _temporary, _SUCCESS, ._SUCCESS.crc
+  *   - or if expecting partitions, children to contain "="
+  */
 object PathValidator {
-  def validate(paths: String*): Validation[ConfigError, List[String]] = {
-    val validated = paths.map {
-      p =>
-        if (p.toLowerCase.startsWith("hdfs://")) {
-          val hadoopConf = new Configuration()
-          val fs = org.apache.hadoop.fs.FileSystem.get(hadoopConf)
-          val fsPath = new org.apache.hadoop.fs.Path(p)
-          if (!fs.exists(fsPath))
-            ConfigError(s"hdfs path doesn't exist: $p").failure[String]
-          else {
-            val children = hdfsList(fs, fsPath)
-            if (areValid(children))
-              p.success[ConfigError]
-            else if (children.isEmpty)
-              ConfigError(s"hdfs path is empty for $p").failure[String]
-            else
-              ConfigError(s"Unexpected hdfs children for $p: ${children.map(trimRoot(p)).mkString(", ")} ").failure[String]
-          }
-        } else {
-          val ioPath = new File(p)
-          if (! ioPath.exists)
-            ConfigError(s"Local path doesn't exist: $p").failure[String]
-          else {
-            val children = ioPath.list().toSeq
-            if (areValid(children))
-              p.success[ConfigError]
-            else if (children.isEmpty)
-              ConfigError(s"Local path is empty for $p").failure[String]
-            else
-              ConfigError(s"Unexpected local children for $p: ${children.map(trimRoot(p)).mkString(", ")}").failure[String]
-          }
+  def validate(checkChildren: Boolean, expectPartition: Boolean, paths: String*): Validation[ConfigError, List[String]] = {
+    val validated = paths.map { p =>
+      if (p.toLowerCase.startsWith("hdfs://")) {
+        val hadoopConf = new Configuration()
+        val fs = org.apache.hadoop.fs.FileSystem.get(hadoopConf)
+        val fsPath = new org.apache.hadoop.fs.Path(p)
+        if (!fs.exists(fsPath))
+          ConfigError(s"hdfs path doesn't exist: $p").failure[String]
+        else if (checkChildren) {
+          val children = hdfsList(fs, fsPath)
+          if (areValid(children, expectPartition))
+            p.success[ConfigError]
+          else if (children.isEmpty)
+            ConfigError(s"hdfs path is empty for $p").failure[String]
+          else
+            ConfigError(s"Unexpected hdfs children for $p: ${children.map(trimRoot(p)).mkString(", ")} ").failure[String]
         }
+        else
+          p.success[ConfigError]
+      } else {
+        val ioPath = new File(p)
+        if (! ioPath.exists)
+          ConfigError(s"Local path doesn't exist: $p").failure[String]
+        else if (checkChildren) {
+          val children = ioPath.list().toSeq
+          if (areValid(children, expectPartition))
+            p.success[ConfigError]
+          else if (children.isEmpty)
+            ConfigError(s"Local path is empty for $p").failure[String]
+          else
+            ConfigError(s"Unexpected local children for $p: ${children.map(trimRoot(p)).mkString(", ")}").failure[String]
+        }
+        else
+          p.success[ConfigError]
+      }
     }
     val res = validated.map(_.map(List(_))).reduce(_ +++ _)
     res
@@ -77,11 +87,11 @@ object PathValidator {
       def next = iter.next
     }
 
-  private def areValid(paths: Seq[String]) = {
+  private def areValid(paths: Seq[String], expectPartition: Boolean) = {
     lazy val hasValidChildren = paths.forall {
       path =>
         val lastElem = path.split("/").last
-        lastElem == "_temporary" || lastElem == "_SUCCESS" || lastElem == "._SUCCESS.crc" || lastElem.contains("=")
+        lastElem == "_temporary" || lastElem == "_SUCCESS" || lastElem == "._SUCCESS.crc" || (expectPartition && lastElem.contains("="))
     }
     paths.nonEmpty && hasValidChildren
   }
