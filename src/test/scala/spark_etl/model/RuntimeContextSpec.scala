@@ -157,40 +157,39 @@ class RuntimeContextSpec extends FlatSpec with Matchers with Inside {
       case Success(conf) =>
         RuntimeContext.load(conf, ".", Map.empty) match {
           case Success(ctx) =>
-            val v = ctx.asDot
             ctx.asDot shouldBe
             """digraph Lineage {
               |  rankdir=LR
               |  node [fontsize=12]
               |
               |  # edges
+              |  item -> client_spending [style=dotted]
+              |  transaction -> client_spending [style=dotted]
               |  client -> client_spending [style=dotted]
+              |  item -> item_purchase [style=dotted]
+              |  transaction -> item_purchase [style=dotted]
               |  client -> item_purchase [style=dotted]
+              |  item -> minor_purchase [style=dotted]
+              |  transaction -> minor_purchase [style=dotted]
               |  client -> minor_purchase [style=dotted]
               |  client_spending -> client_spending_out
-              |  item -> client_spending [style=dotted]
-              |  item -> item_purchase [style=dotted]
-              |  item -> minor_purchase [style=dotted]
               |  item_purchase -> item_purchase_out
               |  minor_purchase -> minor_purchase_out
-              |  transaction -> client_spending [style=dotted]
-              |  transaction -> item_purchase [style=dotted]
-              |  transaction -> minor_purchase [style=dotted]
               |
               |  # vertices
-              |  client
-              |  client_spending [shape=component]
               |  client_spending_out [shape=cylinder]
-              |  item
-              |  item_purchase [shape=component]
               |  item_purchase_out [shape=cylinder]
-              |  minor_purchase [shape=component]
               |  minor_purchase_out [shape=cylinder]
+              |  client_spending [shape=component]
+              |  item_purchase [shape=component]
+              |  minor_purchase [shape=component]
+              |  item
               |  transaction
+              |  client
               |
               |  # ranks
-              |  { rank=same; item_purchase_out client_spending_out minor_purchase_out }
-              |  { rank=same; transaction item client }
+              |  { rank=same; client_spending_out item_purchase_out minor_purchase_out }
+              |  { rank=same; item transaction client }
               |}""".stripMargin
         }
     }

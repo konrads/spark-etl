@@ -10,7 +10,6 @@ class MainUtilsSpec extends FlatSpec with Matchers with Inside {
   val root = Files.rootResource
 
   "Main" should "validate-local complex file specs" in {
-    val envVars = Map("engine" -> "spark", "length_fun" -> "length", "count_fun" -> "count", "join_type" -> "LEFT OUTER JOIN")
     Main.main(Array("-Denv.engine=spark", "-Denv.length_fun=length", "-Denv.count_fun=count", "-Denv.join_type=LEFT OUTER JOIN", s"--conf-uri=file:$root/main-utils/config/app.yaml", "validate-local"))
   }
 

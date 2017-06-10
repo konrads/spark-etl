@@ -18,23 +18,23 @@ case class RuntimeTransform(org: Transform, sqlContents: String, checkContents: 
 class RuntimeContext(extracts: List[RuntimeExtract], transforms: List[RuntimeTransform], val loads: List[Load], val extractReader: ExtractReader, val loadWriter: LoadWriter, depTree: DepTree, conf: Config) {
   def allExtracts: List[RuntimeExtract] =
     (for {
-      r <- depTree.forChildType(E)
+      r <- depTree.forType(E)
       e <- extracts
-      if r.child.id == e.org.name
+      if r.id == e.org.name
     } yield e).toList
 
   def allTransforms: List[RuntimeTransform] =
     (for {
-      r <- depTree.forChildType(T)
+      r <- depTree.forType(T)
       t <- transforms
-      if r.child.id == t.org.name
+      if r.id == t.org.name
     } yield t).toList
 
   def allLoads: List[Load] =
     (for {
-      r <- depTree.forParentType(L)
+      r <- depTree.forType(L)
       l <- loads
-      if r.parent.id == l.name
+      if r.id == l.name
     } yield l).toList
 
   def asDot = depTree.asDot()
@@ -48,26 +48,11 @@ object RuntimeContext extends DefaultYamlProtocol {
   def load(_conf: Config, filePathRoot: String, env: Map[String, String]): ValidationNel[ConfigError, RuntimeContext] = {
     // depTree, with the known universe
     val conf = toLowerCase(_conf)
-    val allExtractNames = conf.extracts.map(_.name)
-    val allTransformNames = conf.transforms.map(_.name)
-    val depTree = new DepTree()
-
-    // setup all candidate deps, note: checks relies on predecessors and themselves
-    conf.extracts.foreach(e => depTree.addCandidate(Edge(Vertice(e.name, E), Vertice(e.name, Echeck))))
-
-    allTransformNames.foldLeft(List.empty[String]) {
-      case (predTs, t) =>
-        // E -> T
-        allExtractNames.foreach(eName => depTree.addCandidate(Edge(Vertice(eName, E), Vertice(t, T))))
-        predTs.foreach(predT => depTree.addCandidate(Edge(Vertice(predT, T), Vertice(t, T))))
-        val predTs2 = predTs :+ t
-        // E -> Tcheck
-        allExtractNames.foreach(eName => depTree.addCandidate(Edge(Vertice(eName, E), Vertice(t, Tcheck))))
-        predTs2.foreach(predT => depTree.addCandidate(Edge(Vertice(predT, T), Vertice(t, Tcheck))))
-        // T -> L
-        conf.loads.foreach(l => depTree.addCandidate(Edge(Vertice(t, T), Vertice(l.name, L))))
-        predTs2
-    }
+    val depTree = new DepTree(
+      conf.extracts.map(e => Vertex(e.name, E)) ++
+        conf.transforms.map(t => Vertex(t.name, T)) ++
+        conf.loads.map(l => Vertex(l.name, L))
+    )
 
     // read in entities and add their deps
     val regExtracts = conf.extracts
@@ -78,7 +63,7 @@ object RuntimeContext extends DefaultYamlProtocol {
       .map(t => registerTransformDeps(t, depTree, filePathRoot, env))
       .map(_.map(List(_))).reduce(_ +++ _)
 
-    conf.loads.foreach(l => depTree.addActual(l.source, Vertice(l.name, L)))
+    conf.loads.foreach(l => depTree.addEdge(l.source, Vertex(l.name, L)))
 
     val validatedDuplicates = validateDuplicates(conf)
 
@@ -151,10 +136,10 @@ object RuntimeContext extends DefaultYamlProtocol {
       case None => None.successNel[ConfigError]
     }
 
-  private def validateResolvedDsos(depTree: DepTree, name: String, node: ETLVertice, errMsgPrefix: String)(contents: String): ValidationNel[ConfigError, String] =
+  private def validateResolvedDsos(depTree: DepTree, name: String, `type`: VertexType, errMsgPrefix: String)(contents: String): ValidationNel[ConfigError, String] =
     Try(Parser.getDsos(contents)) match {
       case Success(usedDsos) =>
-        usedDsos.map(_.toLowerCase).foreach(d => depTree.addActual(d, Vertice(name, node)))
+        usedDsos.map(_.toLowerCase).foreach(d => depTree.addEdge(d, Vertex(name, `type`)))
         contents.successNel[ConfigError]
       case Failure(e: ParseException) =>
         ConfigError(s"$errMsgPrefix: failed to parse, error: ${e.getMessage}").failureNel[String]
@@ -169,7 +154,7 @@ object RuntimeContext extends DefaultYamlProtocol {
     } else {
       val errors = for {
         dangling <- danglingDeps
-      } yield ConfigError(s"Unresolved dependency ${dangling.child.id} for ${dangling.parent.`type`.asStr} ${dangling.parent.id}").failureNel[Unit]
+      } yield ConfigError(s"Unresolved dependency ${dangling.source.id} for ${dangling.target.`type`.asStr} ${dangling.target.id}").failureNel[Unit]
       errors.reduce(_ +++ _)
     }
   }
