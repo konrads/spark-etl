@@ -63,7 +63,7 @@ object RuntimeContext extends DefaultYamlProtocol {
       .map(t => registerTransformDeps(t, depTree, filePathRoot, env))
       .map(_.map(List(_))).reduce(_ +++ _)
 
-    conf.loads.foreach(l => depTree.addEdge(l.source, Vertex(l.name, L)))
+    conf.loads.foreach(l => depTree.addEdge(l.source, Vertex(l.name, L), true))
 
     val validatedDuplicates = validateDuplicates(conf)
 

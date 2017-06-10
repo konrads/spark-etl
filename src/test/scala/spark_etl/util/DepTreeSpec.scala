@@ -21,8 +21,8 @@ class DepTreeSpec extends FlatSpec with Matchers with Inside {
     tree.addEdge("e2", Vertex("t1", T))
     tree.addEdge("t1", Vertex("t2", T))
     tree.addEdge("e3", Vertex("t2", T))
-    tree.addEdge("t1", Vertex("l1", L))
-    tree.addEdge("t2", Vertex("l2", L))
+    tree.addEdge("t1", Vertex("l1", L), true)
+    tree.addEdge("t2", Vertex("l2", L), true)
 
     // validate
     tree.dangling shouldBe Nil
@@ -42,10 +42,10 @@ class DepTreeSpec extends FlatSpec with Matchers with Inside {
     // add actual deps
     tree.addEdge("e1", Vertex("t1", T))
     tree.addEdge("__bogus_e__", Vertex("t1", T))
-    tree.addEdge("t1", Vertex("l1", L))
+    tree.addEdge("t1", Vertex("l1", L), true)
 
     // validate
-    tree.dangling shouldBe Seq(Edge(Vertex("__bogus_e__", Dangling), Vertex("t1", T)))
+    tree.dangling shouldBe Seq(Edge(Vertex("__bogus_e__", Dangling), Vertex("t1", T), false))
 
     tree.rootless shouldBe Seq(Vertex("t2", T), Vertex("e2", E), Vertex("e3", E), Vertex("__bogus_e__", Dangling))
 

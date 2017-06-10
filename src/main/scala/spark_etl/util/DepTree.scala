@@ -33,12 +33,12 @@ class DepTree(knownVertices : Seq[Vertex]) {
   /**
     * Add Edge, fetching from either a list of known, or marking it as Dangling.
     */
-  def addEdge(sourceId: String, target: Vertex): Unit = {
+  def addEdge(sourceId: String, target: Vertex, isExplicit: Boolean = false): Unit = {
     val source = vertices
       .collectFirst { case v @ Vertex(id, _:OtherType) if sourceId == id => v }
       .getOrElse(Vertex(sourceId, Dangling))
     vertices += source  // add if dangling
-    edges += Edge(source, target)
+    edges += Edge(source, target, isExplicit)
   }
 
   def dangling: Seq[Edge] =
@@ -66,11 +66,10 @@ class DepTree(knownVertices : Seq[Vertex]) {
     val plottableVertices = rootfull(Set(E, T, L))
     val plottableEdges = edges.filter(e => plottableVertices.contains(e.source) && plottableVertices.contains(e.target))
     val edgeStrs = plottableEdges.collect {
-      case Edge(srcV, targetV)  =>
-        if (targetV.`type` == T)
-          s"${srcV.id} -> ${targetV.id} [style=dotted]"
-        else
-          s"${srcV.id} -> ${targetV.id}"
+      case Edge(srcV, targetV, false)  =>
+        s"${srcV.id} -> ${targetV.id} [style=dotted]"
+      case Edge(srcV, targetV, true)  =>
+        s"${srcV.id} -> ${targetV.id}"
     }
     val verticeStrs = plottableVertices.collect {
       case Vertex(id, E) => s"$id"
@@ -114,7 +113,7 @@ class DepTree(knownVertices : Seq[Vertex]) {
 }
 
 case class Vertex(id: String, `type`: VertexType)
-case class Edge(source: Vertex, target: Vertex)
+case class Edge(source: Vertex, target: Vertex, isExplicit: Boolean)
 
 sealed trait VertexType { def asStr: String }
 sealed trait RootType extends VertexType
