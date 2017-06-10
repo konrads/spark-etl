@@ -49,7 +49,8 @@ class DepTree(knownVertices : Seq[Vertex]) {
     */
   def rootfull(types: Set[VertexType] = nonDangling): Seq[Vertex] = {
     val vs = collect(vertices.collect { case v @ Vertex(_, _: RootType) => v }.toSeq)
-    vs.filter(v => types.contains(v.`type`))
+    val orderedVs = vertices.intersect(vs.toSet).toSeq // re-order as per original
+    orderedVs.filter(v => types.contains(v.`type`))
   }
 
   /**

@@ -157,6 +157,7 @@ class RuntimeContextSpec extends FlatSpec with Matchers with Inside {
       case Success(conf) =>
         RuntimeContext.load(conf, ".", Map.empty) match {
           case Success(ctx) =>
+            val v = ctx.asDot
             ctx.asDot shouldBe
             """digraph Lineage {
               |  rankdir=LR
@@ -177,19 +178,19 @@ class RuntimeContextSpec extends FlatSpec with Matchers with Inside {
               |  minor_purchase -> minor_purchase_out
               |
               |  # vertices
-              |  client_spending_out [shape=cylinder]
-              |  item_purchase_out [shape=cylinder]
-              |  minor_purchase_out [shape=cylinder]
+              |  client
+              |  item
+              |  transaction
               |  client_spending [shape=component]
               |  item_purchase [shape=component]
               |  minor_purchase [shape=component]
-              |  item
-              |  transaction
-              |  client
+              |  client_spending_out [shape=cylinder]
+              |  item_purchase_out [shape=cylinder]
+              |  minor_purchase_out [shape=cylinder]
               |
               |  # ranks
+              |  { rank=same; client item transaction }
               |  { rank=same; client_spending_out item_purchase_out minor_purchase_out }
-              |  { rank=same; item transaction client }
               |}""".stripMargin
         }
     }
