@@ -163,6 +163,17 @@ class RuntimeContextSpec extends FlatSpec with Matchers with Inside {
               |  rankdir=LR
               |  node [fontsize=12]
               |
+              |  # vertices
+              |  client
+              |  item
+              |  transaction
+              |  client_spending [shape=component]
+              |  item_purchase [shape=component]
+              |  minor_purchase [shape=component]
+              |  client_spending_out [shape=cylinder]
+              |  item_purchase_out [shape=cylinder]
+              |  minor_purchase_out [shape=cylinder]
+              |
               |  # edges
               |  item -> client_spending [style=dotted]
               |  transaction -> client_spending [style=dotted]
@@ -176,17 +187,6 @@ class RuntimeContextSpec extends FlatSpec with Matchers with Inside {
               |  client_spending -> client_spending_out
               |  item_purchase -> item_purchase_out
               |  minor_purchase -> minor_purchase_out
-              |
-              |  # vertices
-              |  client
-              |  item
-              |  transaction
-              |  client_spending [shape=component]
-              |  item_purchase [shape=component]
-              |  minor_purchase [shape=component]
-              |  client_spending_out [shape=cylinder]
-              |  item_purchase_out [shape=cylinder]
-              |  minor_purchase_out [shape=cylinder]
               |
               |  # ranks
               |  { rank=same; client item transaction }

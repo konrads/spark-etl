@@ -86,11 +86,11 @@ class DepTree(knownVertices : Seq[Vertex]) {
        |  rankdir=LR
        |  node [fontsize=$fontSize]
        |
-       |  # edges
-       |  ${edgeStrs.mkString("\n  ")}
-       |
        |  # vertices
        |  ${verticeStrs.mkString("\n  ")}
+       |
+       |  # edges
+       |  ${edgeStrs.mkString("\n  ")}
        |
        |  # ranks
        |  ${rankStrs.toList.sorted.mkString("\n  ")}
