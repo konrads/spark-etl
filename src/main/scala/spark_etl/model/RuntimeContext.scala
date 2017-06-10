@@ -90,14 +90,14 @@ object RuntimeContext extends DefaultYamlProtocol {
         case other => ConfigError(s"Duplicates found for $desc: ${other.sorted.mkString(", ")}").failureNel[Unit]
       }
 
-    (valDups("extract names",   conf.extracts.map(_.name))                                             |@|
-     valDups("extract uris",    conf.extracts.map(_.uri))                                              |@|
-     valDups("extract check",   conf.extracts.collect { case e if e.check.isDefined => e.check.get })  |@|
-     valDups("transform names", conf.transforms.map(_.name))                                           |@|
-     valDups("transform sqls",  conf.transforms.map(_.sql))                                            |@|
-     valDups("transform check", conf.extracts.collect { case t if t.check.isDefined => t.check.get })  |@|
-     valDups("load names",      conf.loads.map(_.name))                                                |@|
-     valDups("load uris",       conf.loads.map(_.uri))) { (_, _, _, _, _, _, _ ,_ ) => ()}
+    valDups("extract names",   conf.extracts.map(_.name))                                             +++
+    valDups("extract uris",    conf.extracts.map(_.uri))                                              +++
+    valDups("extract check",   conf.extracts.collect { case e if e.check.isDefined => e.check.get })  +++
+    valDups("transform names", conf.transforms.map(_.name))                                           +++
+    valDups("transform sqls",  conf.transforms.map(_.sql))                                            +++
+    valDups("transform check", conf.extracts.collect { case t if t.check.isDefined => t.check.get })  +++
+    valDups("load names",      conf.loads.map(_.name))                                                +++
+    valDups("load uris",       conf.loads.map(_.uri))
   }
 
   /**

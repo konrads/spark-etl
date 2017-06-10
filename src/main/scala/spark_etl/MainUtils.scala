@@ -29,14 +29,13 @@ object MainUtils {
         val orgExtracts = ctx.allExtracts.map(_.org)
         val extractReaderValidation = ctx.extractReader.checkLocal(orgExtracts)
         val loadWriterValidation = ctx.loadWriter.checkLocal(ctx.loads)
-        (extractReaderValidation |@| loadWriterValidation) { (_, _) =>
+        (extractReaderValidation +++ loadWriterValidation).map(_ =>
           log.info(
             s"""Local context validated!
                |
                |ExtractReader validated!
                |
-               |LoadWriter validated!""".stripMargin)
-        }
+               |LoadWriter validated!""".stripMargin))
     }
 
   def validateRemote(confUri: String, filePathRoot: String, env: Map[String, String])(implicit spark: SparkSession): ValidationNel[ConfigError, Unit] =
@@ -46,7 +45,7 @@ object MainUtils {
         val extractReaderValidation = ctx.extractReader.checkRemote(orgExtracts)
         val loadWriterValidation = ctx.loadWriter.checkRemote(ctx.loads)
         for {
-          _ <- (extractReaderValidation |@| loadWriterValidation) { (_, _) => () }
+          _ <- extractReaderValidation +++ loadWriterValidation
           _ <- {
             // for validation - do not persist
             val withoutCacheOrPersist = ctx.allExtracts.map(e => e.copy(org = e.org.copy(cache = None, persist = None)))
