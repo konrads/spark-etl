@@ -2,9 +2,7 @@ package spark_etl.util
 
 import org.scalatest.{FlatSpec, Inside, Matchers}
 import spark_etl.ConfigError
-
-import scalaz.Failure
-import scalaz.Scalaz._
+import spark_etl.util.Validation._
 
 class UriLoaderSpec extends FlatSpec with Matchers with Inside {
   "UriLoader" should "read resource without tokens" in {
@@ -49,7 +47,7 @@ class UriLoaderSpec extends FlatSpec with Matchers with Inside {
          |111 val1 222 val2 333 val1 444
          |
          |+++""".stripMargin
-    UriLoader.load("/uri-loader/with_includes", "__ignore__", Map("var1" -> "val1", "var2" -> "val2")) shouldBe expected.successNel[ConfigError]
+    UriLoader.load("/uri-loader/with_includes", "__ignore__", Map("var1" -> "val1", "var2" -> "val2")) shouldBe expected.success[ConfigError]
   }
 
   it should "read fail on bogus #include" in {
@@ -60,11 +58,11 @@ class UriLoaderSpec extends FlatSpec with Matchers with Inside {
   }
 
   private def validateWithoutVars(uri: String, fileRoot: String) = {
-    UriLoader.load(uri, fileRoot, Map("var1" -> "val1")) shouldBe "hello there\n123\n".successNel[ConfigError]
+    UriLoader.load(uri, fileRoot, Map("var1" -> "val1")) shouldBe "hello there\n123\n".success[ConfigError]
   }
 
   private def validateWithVars(uri: String, fileRoot: String) = {
-    UriLoader.load(uri, fileRoot, Map("var1" -> "val1", "var2" -> "val2")) shouldBe "111 val1 222 val2 333 val1 444\n".successNel[ConfigError]
+    UriLoader.load(uri, fileRoot, Map("var1" -> "val1", "var2" -> "val2")) shouldBe "111 val1 222 val2 333 val1 444\n".success[ConfigError]
     inside(UriLoader.load(uri, fileRoot, Map.empty)) {
       case Failure(err) =>
         err.toList.length shouldBe 1

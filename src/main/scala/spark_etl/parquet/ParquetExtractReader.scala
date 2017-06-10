@@ -2,17 +2,16 @@ package spark_etl.parquet
 
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import spark_etl.model.Extract
+import spark_etl.util.Validation
+import spark_etl.util.Validation._
 import spark_etl.{ConfigError, ExtractReader}
-
-import scalaz.Scalaz._
-import scalaz._
 
 class ParquetExtractReader(params: Map[String, String]) extends ExtractReader(params) {
   // nothing to validate
-  override def checkLocal(extracts: Seq[Extract]): ValidationNel[ConfigError, Unit] =
-    ().successNel[ConfigError]
+  override def checkLocal(extracts: Seq[Extract]): Validation[ConfigError, Unit] =
+    ().success[ConfigError]
 
-  override def checkRemote(extracts: Seq[Extract]): ValidationNel[ConfigError, Unit] = {
+  override def checkRemote(extracts: Seq[Extract]): Validation[ConfigError, Unit] = {
     val parquetUris = extracts.map(_.uri)
     PathValidator.validate(parquetUris: _*).map(_ => ())
   }

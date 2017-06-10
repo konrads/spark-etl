@@ -1,10 +1,7 @@
 package spark_etl
 
 import org.scalatest.{FlatSpec, Inside, Matchers}
-import spark_etl.util.Files
-
-import scalaz.Scalaz._
-import scalaz._
+import spark_etl.util._
 
 class MainUtilsSpec extends FlatSpec with Matchers with Inside {
   val root = Files.rootResource
@@ -22,8 +19,8 @@ class MainUtilsSpec extends FlatSpec with Matchers with Inside {
     val envVars = Map("length_fun" -> "length", "count_fun" -> "count", "join_type" -> "LEFT OUTER JOIN")
     inside(MainUtils.validateLocal("file:main-utils/config/app.yaml", root, envVars)) {
       case Failure(errs) =>
-        errs.toList.length shouldBe 1
-        errs.toList.head.msg shouldBe "Unresolved env vars in file:main-utils/config/app.yaml: ${engine}"
+        errs.length shouldBe 1
+        errs.head.msg shouldBe "Unresolved env vars in file:main-utils/config/app.yaml: ${engine}"
     }
   }
 

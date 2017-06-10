@@ -2,10 +2,9 @@ package spark_etl.model
 
 import org.apache.spark.sql.{DataFrame, SparkSession}
 import org.scalatest.{FlatSpec, Inside, Matchers}
+import spark_etl.util.Validation._
+import spark_etl.util._
 import spark_etl.{ConfigError, ExtractReader, LoadWriter}
-
-import scalaz.Scalaz._
-import scalaz._
 
 class RuntimeContextSpec extends FlatSpec with Matchers with Inside {
   val extractsAndTransformsStr =
@@ -199,15 +198,15 @@ class RuntimeContextSpec extends FlatSpec with Matchers with Inside {
 }
 
 class OkExtractReader(val params: Map[String, Any]) extends ExtractReader(params) {
-  override def checkLocal(extracts: Seq[Extract]): ValidationNel[ConfigError, Unit] = ().successNel[ConfigError]
-  override def checkRemote(extracts: Seq[Extract]): ValidationNel[ConfigError, Unit] = ???
+  override def checkLocal(extracts: Seq[Extract]): Validation[ConfigError, Unit] = ().success[ConfigError]
+  override def checkRemote(extracts: Seq[Extract]): Validation[ConfigError, Unit] = ???
   override def read(extracts: Seq[Extract])(implicit spark: SparkSession): Seq[(Extract, DataFrame)] = ???
 }
 
 class OkLoadWriter(val params: Map[String, Any]) extends LoadWriter(params) {
   override def write(loadsAndDfs: Seq[(Load, DataFrame)]): Unit = ???
-  override def checkLocal(loads: Seq[Load]): ValidationNel[ConfigError, Unit] = ().successNel[ConfigError]
-  override def checkRemote(loads: Seq[Load]): ValidationNel[ConfigError, Unit] = ???
+  override def checkLocal(loads: Seq[Load]): Validation[ConfigError, Unit] = ().success[ConfigError]
+  override def checkRemote(loads: Seq[Load]): Validation[ConfigError, Unit] = ???
 }
 
 class BogusExtractReader1(params: Map[String, Any])
@@ -215,13 +214,13 @@ class BogusExtractReader1(params: Map[String, Any])
 class BogusLoadWriter1(params: Map[String, Any])
 
 class BogusExtractReader2 extends ExtractReader(Map.empty) {
-  override def checkLocal(extracts: Seq[Extract]): ValidationNel[ConfigError, Unit] = ().successNel[ConfigError]
-  override def checkRemote(extracts: Seq[Extract]): ValidationNel[ConfigError, Unit] = ???
+  override def checkLocal(extracts: Seq[Extract]): Validation[ConfigError, Unit] = ().success[ConfigError]
+  override def checkRemote(extracts: Seq[Extract]): Validation[ConfigError, Unit] = ???
   override def read(extracts: Seq[Extract])(implicit spark: SparkSession): Seq[(Extract, DataFrame)] = ???
 }
 
 class BogusLoadWriter2 extends LoadWriter(Map.empty) {
   override def write(loadsAndDfs: Seq[(Load, DataFrame)]): Unit = ???
-  override def checkLocal(loads: Seq[Load]): ValidationNel[ConfigError, Unit] = ().successNel[ConfigError]
-  override def checkRemote(loads: Seq[Load]): ValidationNel[ConfigError, Unit] = ???
+  override def checkLocal(loads: Seq[Load]): Validation[ConfigError, Unit] = ().success[ConfigError]
+  override def checkRemote(loads: Seq[Load]): Validation[ConfigError, Unit] = ???
 }

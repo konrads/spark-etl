@@ -5,12 +5,11 @@ import java.io.File
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, RemoteIterator}
 import spark_etl.ConfigError
-
-import scalaz.Scalaz._
-import scalaz.ValidationNel
+import spark_etl.util.Validation
+import spark_etl.util.Validation._
 
 object PathValidator {
-  def validate(paths: String*): ValidationNel[ConfigError, Seq[String]] = {
+  def validate(paths: String*): Validation[ConfigError, List[String]] = {
     val validated = paths.map {
       p =>
         if (p.toLowerCase.startsWith("hdfs://")) {
@@ -18,28 +17,28 @@ object PathValidator {
           val fs = org.apache.hadoop.fs.FileSystem.get(hadoopConf)
           val fsPath = new org.apache.hadoop.fs.Path(p)
           if (!fs.exists(fsPath))
-            ConfigError(s"hdfs path doesn't exist: $p").failureNel[String]
+            ConfigError(s"hdfs path doesn't exist: $p").failure[String]
           else {
             val children = hdfsList(fs, fsPath)
             if (areValid(children))
-              p.successNel[ConfigError]
+              p.success[ConfigError]
             else if (children.isEmpty)
-              ConfigError(s"hdfs path is empty for $p").failureNel[String]
+              ConfigError(s"hdfs path is empty for $p").failure[String]
             else
-              ConfigError(s"Unexpected hdfs children for $p: ${children.map(trimRoot(p)).mkString(", ")} ").failureNel[String]
+              ConfigError(s"Unexpected hdfs children for $p: ${children.map(trimRoot(p)).mkString(", ")} ").failure[String]
           }
         } else {
           val ioPath = new File(p)
           if (! ioPath.exists)
-            ConfigError(s"Local path doesn't exist: $p").failureNel[String]
+            ConfigError(s"Local path doesn't exist: $p").failure[String]
           else {
             val children = ioPath.list().toSeq
             if (areValid(children))
-              p.successNel[ConfigError]
+              p.success[ConfigError]
             else if (children.isEmpty)
-              ConfigError(s"Local path is empty for $p").failureNel[String]
+              ConfigError(s"Local path is empty for $p").failure[String]
             else
-              ConfigError(s"Unexpected local children for $p: ${children.map(trimRoot(p)).mkString(", ")}").failureNel[String]
+              ConfigError(s"Unexpected local children for $p: ${children.map(trimRoot(p)).mkString(", ")}").failure[String]
           }
         }
     }

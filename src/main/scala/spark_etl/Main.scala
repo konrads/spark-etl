@@ -4,11 +4,9 @@ import java.io.{PrintWriter, StringWriter}
 
 import org.apache.spark.sql._
 import org.rogach.scallop._
-import spark_etl.util.Files
+import spark_etl.util.{Failure, Files, Success}
 
 import scala.util.Random
-import scalaz.Scalaz._
-import scalaz._
 
 object Main {
   val log = org.slf4j.LoggerFactory.getLogger(getClass)

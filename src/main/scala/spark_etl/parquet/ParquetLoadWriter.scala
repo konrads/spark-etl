@@ -2,10 +2,9 @@ package spark_etl.parquet
 
 import org.apache.spark.sql.DataFrame
 import spark_etl.model.Load
+import spark_etl.util.Validation
+import spark_etl.util.Validation._
 import spark_etl.{ConfigError, LoadWriter}
-
-import scalaz.Scalaz._
-import scalaz._
 
 class ParquetLoadWriter(params: Map[String, String]) extends LoadWriter(params) {
   override def write(loadsAndDfs: Seq[(Load, DataFrame)]): Unit = {
@@ -16,9 +15,9 @@ class ParquetLoadWriter(params: Map[String, String]) extends LoadWriter(params) 
   }
 
   // nothing to validate
-  override def checkLocal(loads: Seq[Load]): ValidationNel[ConfigError, Unit] =
-    ().successNel[ConfigError]
+  override def checkLocal(loads: Seq[Load]): Validation[ConfigError, Unit] =
+    ().success[ConfigError]
 
-  override def checkRemote(loads: Seq[Load]): ValidationNel[ConfigError, Unit] =
-    ().successNel[ConfigError]
+  override def checkRemote(loads: Seq[Load]): Validation[ConfigError, Unit] =
+    ().success[ConfigError]
 }

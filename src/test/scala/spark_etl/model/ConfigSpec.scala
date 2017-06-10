@@ -2,13 +2,13 @@ package spark_etl.model
 
 import org.scalatest.{FlatSpec, Inside, Matchers}
 
-import scalaz.{Failure, INil, NonEmptyList, Success}
+import spark_etl.util._
 
 class ConfigSpec extends FlatSpec with Matchers with Inside {
   "Config" should "fail to parse" in {
     val bogusConfig = "NOT A CONFIG"
     inside(Config.parse(bogusConfig)) {
-      case Failure(NonEmptyList(err, INil())) =>
+      case Failure(Seq(err)) =>
         err.msg should startWith("Failed to deserialize")
     }
   }

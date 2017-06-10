@@ -3,12 +3,10 @@ package spark_etl.model
 import net.jcazevedo.moultingyaml._
 import spark_etl.ConfigError
 import spark_etl.parquet.{ParquetExtractReader, ParquetLoadWriter}
-import spark_etl.util.UriLoader
+import spark_etl.util.Validation._
+import spark_etl.util.{UriLoader, Validation}
 
 import scala.util.{Failure, Success, Try}
-import scalaz.Scalaz._
-import scalaz.Validation.FlatMap._
-import scalaz._
 
 case class Config(
   extracts: List[Extract],
@@ -23,10 +21,10 @@ object Config extends DefaultYamlProtocol {
   /**
     * Load Config from resource/file Uri
     */
-  def load(resourceUri: String, filePathRoot: String, env: Map[String, String]): ValidationNel[ConfigError, Config] =
+  def load(resourceUri: String, filePathRoot: String, env: Map[String, String]): Validation[ConfigError, Config] =
     UriLoader.load(resourceUri, filePathRoot, env).flatMap(parse(_, env))
 
-  def parse(configStr: String, env: Map[String, String] = Map.empty): ValidationNel[ConfigError, Config] =
+  def parse(configStr: String, env: Map[String, String] = Map.empty): Validation[ConfigError, Config] =
     Try(configStr.parseYaml.convertTo[Config]) match {
       case Success(conf) =>
         // yaml parser does not populate with defaults - force them
@@ -36,10 +34,10 @@ object Config extends DefaultYamlProtocol {
           extract_reader = conf.extract_reader.orElse(defaultExtractReader),
           load_writer = conf.load_writer.orElse(defaultLoadWriter)
         )
-        conf2.successNel[ConfigError]
+        conf2.success[ConfigError]
       case Failure(e: DeserializationException) =>
-        ConfigError(s"Failed to deserialize config body, exception: ${e.getMessage}").failureNel[Config]
+        ConfigError(s"Failed to deserialize config body, exception: ${e.getMessage}").failure[Config]
       case Failure(e) =>
-        ConfigError(s"Failed to parse config body", Some(e)).failureNel[Config]
+        ConfigError(s"Failed to parse config body", Some(e)).failure[Config]
     }
 }

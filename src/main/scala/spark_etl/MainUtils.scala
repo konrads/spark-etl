@@ -4,26 +4,25 @@ import java.io.{File, PrintWriter}
 
 import org.apache.spark.sql.{AnalysisException, DataFrame, SparkSession}
 import spark_etl.model._
+import spark_etl.util.Validation
+import spark_etl.util.Validation._
 
 import scala.util.Try
-import scalaz.Scalaz._
-import scalaz.Validation.FlatMap._
-import scalaz._
 
 object MainUtils {
   val log = org.slf4j.LoggerFactory.getLogger(getClass)
 
-  def dotLineage(confUri: String, filePathRoot: String, env: Map[String, String], filename: String): ValidationNel[ConfigError, Unit] =
+  def dotLineage(confUri: String, filePathRoot: String, env: Map[String, String], filename: String): Validation[ConfigError, Unit] =
     withCtx(confUri, filePathRoot, env) {
       ctx =>
         new PrintWriter(filename) {
           write(ctx.asDot)
           close
         }
-        ().successNel[ConfigError]
+        ().success[ConfigError]
     }
 
-  def validateLocal(confUri: String, filePathRoot: String, env: Map[String, String]): ValidationNel[ConfigError, Unit] =
+  def validateLocal(confUri: String, filePathRoot: String, env: Map[String, String]): Validation[ConfigError, Unit] =
     withCtx(confUri, filePathRoot, env) {
       ctx =>
         val orgExtracts = ctx.allExtracts.map(_.org)
@@ -38,7 +37,7 @@ object MainUtils {
                |LoadWriter validated!""".stripMargin))
     }
 
-  def validateRemote(confUri: String, filePathRoot: String, env: Map[String, String])(implicit spark: SparkSession): ValidationNel[ConfigError, Unit] =
+  def validateRemote(confUri: String, filePathRoot: String, env: Map[String, String])(implicit spark: SparkSession): Validation[ConfigError, Unit] =
     withCtx(confUri, filePathRoot, env) {
       ctx =>
         val orgExtracts = ctx.allExtracts.map(_.org)
@@ -68,7 +67,7 @@ object MainUtils {
         }
     }
 
-  def transformAndLoad(confUri: String, filePathRoot: String, env: Map[String, String], props: Map[String, String], showCounts: Boolean)(implicit spark: SparkSession): ValidationNel[ConfigError, Unit] =
+  def transformAndLoad(confUri: String, filePathRoot: String, env: Map[String, String], props: Map[String, String], showCounts: Boolean)(implicit spark: SparkSession): Validation[ConfigError, Unit] =
     withCtx(confUri, filePathRoot, env) {
       ctx =>
         for {
@@ -83,14 +82,14 @@ object MainUtils {
             } yield (l, df)
             ctx.loadWriter.write(loadsAndDfs)
           } match {
-            case scala.util.Success(_) => ().successNel[ConfigError]
-            case scala.util.Failure(exc:AnalysisException) => ConfigError(s"Failed to write out transform due to AnalysisException, ${exc.getMessage}").failureNel[Seq[(RuntimeTransform, DataFrame)]]
-            case scala.util.Failure(e) => ConfigError("Failed to write out transform", Some(e)).failureNel[Unit]
+            case scala.util.Success(_) => ().success[ConfigError]
+            case scala.util.Failure(exc:AnalysisException) => ConfigError(s"Failed to write out transform due to AnalysisException, ${exc.getMessage}").failure[Seq[(RuntimeTransform, DataFrame)]]
+            case scala.util.Failure(e) => ConfigError("Failed to write out transform", Some(e)).failure[Unit]
           }
         } yield ()
     }
 
-  def extractCheck(confUri: String, filePathRoot: String, env: Map[String, String])(implicit spark: SparkSession): ValidationNel[ConfigError, Unit] =
+  def extractCheck(confUri: String, filePathRoot: String, env: Map[String, String])(implicit spark: SparkSession): Validation[ConfigError, Unit] =
     withCtx(confUri, filePathRoot, env) {
       ctx =>
         for {
@@ -103,7 +102,7 @@ object MainUtils {
         } yield ()
     }
 
-  def transformCheck(confUri: String, filePathRoot: String, env: Map[String, String], showCounts: Boolean)(implicit spark: SparkSession): ValidationNel[ConfigError, Unit] =
+  def transformCheck(confUri: String, filePathRoot: String, env: Map[String, String], showCounts: Boolean)(implicit spark: SparkSession): Validation[ConfigError, Unit] =
     withCtx(confUri, filePathRoot, env) {
       ctx =>
         for {
@@ -117,7 +116,7 @@ object MainUtils {
         } yield ()
     }
 
-  private def withCtx(confUri: String, filePathRoot: String, env: Map[String, String])(run: (RuntimeContext) => ValidationNel[ConfigError, Unit]): ValidationNel[ConfigError, Unit] = {
+  private def withCtx(confUri: String, filePathRoot: String, env: Map[String, String])(run: (RuntimeContext) => Validation[ConfigError, Unit]): Validation[ConfigError, Unit] = {
     val validatedCtx = for {
       conf <- Config.load(confUri, filePathRoot, env)
       ctx  <- {
@@ -157,7 +156,7 @@ object MainUtils {
     validatedCtx.flatMap(run)
   }
 
-  private def readExtracts(extractor: ExtractReader, extracts: Seq[RuntimeExtract])(implicit spark: SparkSession): ValidationNel[ConfigError, Unit] = {
+  private def readExtracts(extractor: ExtractReader, extracts: Seq[RuntimeExtract])(implicit spark: SparkSession): Validation[ConfigError, Unit] = {
     val orgExtracts = extracts.map(_.org)
     Try {
       extractor.read(orgExtracts).foreach {
@@ -167,12 +166,12 @@ object MainUtils {
           df.createOrReplaceTempView(e.name)
       }
     } match {
-      case scala.util.Success(res) => res.successNel[ConfigError]
-      case scala.util.Failure(exc) => ConfigError("Failed to load extracts", Some(exc)).failureNel[Unit]
+      case scala.util.Success(res) => res.success[ConfigError]
+      case scala.util.Failure(exc) => ConfigError("Failed to load extracts", Some(exc)).failure[Unit]
     }
   }
 
-  private def loadTransforms(transforms: Seq[RuntimeTransform])(implicit spark: SparkSession): ValidationNel[ConfigError, Seq[(RuntimeTransform, DataFrame)]] =
+  private def loadTransforms(transforms: Seq[RuntimeTransform])(implicit spark: SparkSession): Validation[ConfigError, Seq[(RuntimeTransform, DataFrame)]] =
     Try {
       transforms.map {
         t =>
@@ -183,24 +182,24 @@ object MainUtils {
           (t, df)
       }
     } match {
-      case scala.util.Success(res) => res.successNel[ConfigError]
-      case scala.util.Failure(exc:AnalysisException) => ConfigError(s"Failed to run transforms due to AnalysisException, ${exc.getMessage}").failureNel[Seq[(RuntimeTransform, DataFrame)]]
-      case scala.util.Failure(exc) => ConfigError("Failed to run transforms", Some(exc)).failureNel[Seq[(RuntimeTransform, DataFrame)]]
+      case scala.util.Success(res) => res.success[ConfigError]
+      case scala.util.Failure(exc:AnalysisException) => ConfigError(s"Failed to run transforms due to AnalysisException, ${exc.getMessage}").failure[Seq[(RuntimeTransform, DataFrame)]]
+      case scala.util.Failure(exc) => ConfigError("Failed to run transforms", Some(exc)).failure[Seq[(RuntimeTransform, DataFrame)]]
     }
 
-  private def runCounts(transformsAndDfs: Seq[(RuntimeTransform, DataFrame)], showCounts: Boolean): ValidationNel[ConfigError, Unit] =
+  private def runCounts(transformsAndDfs: Seq[(RuntimeTransform, DataFrame)], showCounts: Boolean): Validation[ConfigError, Unit] =
     if (! showCounts)
-      ().successNel[ConfigError]
+      ().success[ConfigError]
     else
       Try {
         val countDescrs = toBullets(transformsAndDfs.map { case (t, df) => t.org.name -> df.count.toString }, ": ")
         log.info(s"Transform counts:\n$countDescrs")
       } match {
-        case scala.util.Success(_) => ().successNel[ConfigError]
-        case scala.util.Failure(exc) => ConfigError("Failed to run counts", Some(exc)).failureNel[Unit]
+        case scala.util.Success(_) => ().success[ConfigError]
+        case scala.util.Failure(exc) => ConfigError("Failed to run counts", Some(exc)).failure[Unit]
       }
 
-  protected def runAndReport(desc: String, descAndSql: Seq[(String, String)])(implicit spark: SparkSession): ValidationNel[ConfigError, Unit] =
+  protected def runAndReport(desc: String, descAndSql: Seq[(String, String)])(implicit spark: SparkSession): Validation[ConfigError, Unit] =
     Try {
       val outputs = descAndSql.map {
         case (sqlDesc, sql) =>
@@ -208,9 +207,9 @@ object MainUtils {
           val valFieldDesc = df.take(100).map(r => df.schema.fields zip r.toSeq).flatMap(_.map {
             // Fail on false only, succeed and report on all others
             case (f, false) =>
-              ConfigError(s"$desc: $sqlDesc's check ${f.name} returned false!").failureNel[(String, String)]
+              ConfigError(s"$desc: $sqlDesc's check ${f.name} returned false!").failure[(String, String)]
             case (f, value) =>
-              (f.name -> value.toString).successNel[ConfigError]
+              (f.name -> value.toString).success[ConfigError]
           })
           val valRes = valFieldDesc.map(_.map(List(_))).reduce(_ +++ _)
           valRes.map(fieldDesc => s"$sqlDesc:\n${toBullets(fieldDesc)}")
@@ -218,7 +217,7 @@ object MainUtils {
       outputs.map(_.map(List(_))).reduce(_ +++ _)
     } match {
       case scala.util.Success(res) => res.map(outputs => log.info(s"$desc:\n${outputs.mkString("\n")}"))
-      case scala.util.Failure(exc) => ConfigError(s"Failed to load $desc", Some(exc)).failureNel[Unit]
+      case scala.util.Failure(exc) => ConfigError(s"Failed to load $desc", Some(exc)).failure[Unit]
     }
 
   private def toBullets(kvs: Seq[(String, String)], sep: String = " -> ") =

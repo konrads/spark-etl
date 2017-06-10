@@ -3,10 +3,7 @@ package spark_etl.parquet
 import java.io.File
 
 import org.scalatest.{FlatSpec, Inside, Matchers}
-import spark_etl.util.Files
-
-import scalaz.Scalaz._
-import scalaz._
+import spark_etl.util._
 
 class PathValidatorSpec extends FlatSpec with Matchers with Inside {
   val root = Files.rootResource
