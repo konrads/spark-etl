@@ -2,6 +2,7 @@ package spark_etl
 
 import java.io.{File, PrintWriter}
 
+import org.apache.log4j.Logger
 import org.apache.spark.sql.{AnalysisException, DataFrame, SparkSession}
 import spark_etl.model._
 import spark_etl.util.Validation
@@ -10,7 +11,7 @@ import spark_etl.util.Validation._
 import scala.util.Try
 
 object MainUtils {
-  val log = org.slf4j.LoggerFactory.getLogger(getClass)
+  val log = Logger.getLogger(getClass)
 
   def dotLineage(confUri: String, filePathRoot: String, env: Map[String, String], filename: String): Validation[ConfigError, Unit] =
     withCtx(confUri, filePathRoot, env) {

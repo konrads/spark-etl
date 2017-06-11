@@ -1,15 +1,17 @@
 package spark_etl
 
-import java.io.{PrintWriter, StringWriter}
+import java.io.{File, PrintWriter, StringWriter}
 
+import org.apache.log4j.Logger
 import org.apache.spark.sql._
 import org.rogach.scallop._
-import spark_etl.util.{Failure, Files, Success}
+import spark_etl.util.Validation._
+import spark_etl.util.{BAHelper, Failure, Files, Success}
 
-import scala.util.Random
+import scala.util.{Random, Try}
 
 object Main {
-  val log = org.slf4j.LoggerFactory.getLogger(getClass)
+  val log = Logger.getLogger(getClass)
 
   sealed trait CliCommand
   object LineageDot extends CliCommand
@@ -18,6 +20,7 @@ object Main {
   object TransformLoad extends CliCommand
   object ExtractCheck extends CliCommand
   object TransformCheck extends CliCommand
+  object StripPrefixes extends CliCommand
   object CliCommand {
     implicit val cliCommandConverter = singleArgConverter[CliCommand] {
       case "lineage-dot"     => LineageDot
@@ -26,6 +29,7 @@ object Main {
       case "transform-load"  => TransformLoad
       case "extract-check"   => ExtractCheck
       case "transform-check" => TransformCheck
+      case "strip-prefixes"  => StripPrefixes
     }
   }
 
@@ -35,6 +39,8 @@ object Main {
     val extraProps  = props[String]()
     val confUri     = opt[String](name = "conf-uri", descr = "configuration resource uri", default = Some("/app.yaml"))
     val lineageFile = opt[String](name = "lineage-file", descr = "target lineage dot file", default = Some("lineage.dot"))
+    val baSqlDir    = opt[File](name = "ba-sql-dir", descr = "dir with BA sql", default = Some(new File("src/main/resources/spark")))
+    val devSqlDir   = opt[File](name = "dev-sql-dir", descr = "dir with DEV sql", default = Some(new File("src/main/resources/spark")))
     val count       = toggle(name = "count", descrYes = "enable transform counts", default = Some(false))
     val command     = trailArg[CliCommand](name = "command", descr = "command")
     verify()
@@ -42,10 +48,10 @@ object Main {
 
   def main(args: Array[String]): Unit = {
     val conf = new CliConf(args)
-    main(conf.command(), conf.confUri(), conf.extraProps, conf.count(), conf.lineageFile())
+    main(conf.command(), conf.confUri(), conf.extraProps, conf.count(), conf.lineageFile(), conf.baSqlDir(), conf.devSqlDir())
   }
 
-  def main(command: CliCommand, confUri: String, extraProps: Map[String, String], shouldCount: Boolean, lineageFile: String): Unit = {
+  def main(command: CliCommand, confUri: String, extraProps: Map[String, String], shouldCount: Boolean, lineageFile: String, baSqlDir: File, devSqlDir: File): Unit = {
     def createSpark(name: String, props: Map[String, String], isMaster: Boolean): SparkSession = {
       val builder = if (isMaster)
           SparkSession.builder.appName(name).master("local[1]").config("spark.ui.port", random(4041, 4999)).config("spark.history.ui.port", random(18080, 19000))
@@ -90,6 +96,14 @@ object Main {
           MainUtils.transformCheck(confUri, pwd, env, shouldCount)
         } finally {
           spark.stop()
+        }
+      case StripPrefixes =>
+        Try(BAHelper.copySqls(baSqlDir, devSqlDir)) match {
+          case scala.util.Success(descs) =>
+            val desc = descs.map { case (source, target) => s"• $source -> $target" }
+            log.info(s"""Copied BA sql to DEV:\n${desc.mkString("\n")}""").success[ConfigError]
+          case scala.util.Failure(e) =>
+            ConfigError(s"Failed to copy SQL from $baSqlDir to $devSqlDir", Some(e)).failure[Unit]
         }
     }
 
