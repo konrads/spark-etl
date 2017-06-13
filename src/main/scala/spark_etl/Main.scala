@@ -5,10 +5,9 @@ import java.io.{File, PrintWriter, StringWriter}
 import org.apache.log4j.Logger
 import org.apache.spark.sql._
 import org.rogach.scallop._
-import spark_etl.util.Validation._
-import spark_etl.util.{BAHelper, Failure, Files, Success}
+import spark_etl.util.{Failure, Files, Success}
 
-import scala.util.{Random, Try}
+import scala.util.Random
 
 object Main {
   val log = Logger.getLogger(getClass)
@@ -101,13 +100,7 @@ object Main {
           spark.stop()
         }
       case StripPrefixes =>
-        Try(BAHelper.copySqls(baSqlDir, devSqlDir, rmDevSqlDir)) match {
-          case scala.util.Success(descs) =>
-            val desc = descs.map { case (source, target) => s"• $source -> $target" }
-            log.info(s"""Copied BA sql to DEV:\n${desc.mkString("\n")}""").success[ConfigError]
-          case scala.util.Failure(e) =>
-            ConfigError(s"Failed to copy SQL from $baSqlDir to $devSqlDir", Some(e)).failure[Unit]
-        }
+        MainUtils.stripPrefixes(baSqlDir, devSqlDir, rmDevSqlDir)
     }
 
     res match {

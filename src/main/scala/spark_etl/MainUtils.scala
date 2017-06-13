@@ -5,7 +5,7 @@ import java.io.{File, PrintWriter}
 import org.apache.log4j.Logger
 import org.apache.spark.sql.{AnalysisException, DataFrame, SparkSession}
 import spark_etl.model._
-import spark_etl.util.Validation
+import spark_etl.util.{BAHelper, Validation}
 import spark_etl.util.Validation._
 
 import scala.util.Try
@@ -219,6 +219,14 @@ object MainUtils {
     } match {
       case scala.util.Success(res) => res.map(outputs => log.info(s"$desc:\n${outputs.mkString("\n")}"))
       case scala.util.Failure(exc) => ConfigError(s"Failed to load $desc", Some(exc)).failure[Unit]
+    }
+
+  def stripPrefixes(srcDir: File, targetDir: File, rmTargetDir: Boolean): Validation[ConfigError, Unit] =
+    Try(BAHelper.copySqls(srcDir, targetDir, rmTargetDir)) match {
+      case scala.util.Success(descs) =>
+        log.info(s"""Copied BA sql to DEV:\n${MainUtils.toBullets(descs)}""").success[ConfigError]
+      case scala.util.Failure(e) =>
+        ConfigError(s"Failed to copy SQL from $srcDir to $targetDir", Some(e)).failure[Unit]
     }
 
   private def toBullets(kvs: Seq[(String, String)], sep: String = " -> ") =
