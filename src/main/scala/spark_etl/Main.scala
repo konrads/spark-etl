@@ -41,6 +41,7 @@ object Main {
     val lineageFile = opt[String](name = "lineage-file", descr = "target lineage dot file", default = Some("lineage.dot"))
     val baSqlDir    = opt[File](name = "ba-sql-dir", descr = "dir with BA sql", default = Some(new File("src/main/resources/spark")))
     val devSqlDir   = opt[File](name = "dev-sql-dir", descr = "dir with DEV sql", default = Some(new File("src/main/resources/spark")))
+    val rmDevSqlDir = opt[Boolean](name = "rm-dev-sql-dir", descr = "should remove dev sql dir?", default = Some(false))
     val count       = toggle(name = "count", descrYes = "enable transform counts", default = Some(false))
     val command     = trailArg[CliCommand](name = "command", descr = "command")
     verify()
@@ -50,10 +51,10 @@ object Main {
 
   def main(args: Array[String]): Unit = {
     val conf = new CliConf(args)
-    main(conf.command(), conf.confUri(), conf.extraProps, conf.count(), conf.lineageFile(), conf.baSqlDir(), conf.devSqlDir())
+    main(conf.command(), conf.confUri(), conf.extraProps, conf.count(), conf.lineageFile(), conf.baSqlDir(), conf.devSqlDir(), conf.rmDevSqlDir())
   }
 
-  def main(command: CliCommand, confUri: String, extraProps: Map[String, String], shouldCount: Boolean, lineageFile: String, baSqlDir: File, devSqlDir: File, errorHandler: ErrorHandler = die): Unit = {
+  def main(command: CliCommand, confUri: String, extraProps: Map[String, String], shouldCount: Boolean, lineageFile: String, baSqlDir: File, devSqlDir: File, rmDevSqlDir: Boolean, errorHandler: ErrorHandler = die): Unit = {
     def createSpark(name: String, props: Map[String, String], isMaster: Boolean): SparkSession = {
       val builder = if (isMaster)
           SparkSession.builder.appName(name).master("local[1]").config("spark.ui.port", random(4041, 4999)).config("spark.history.ui.port", random(18080, 19000))
@@ -100,7 +101,7 @@ object Main {
           spark.stop()
         }
       case StripPrefixes =>
-        Try(BAHelper.copySqls(baSqlDir, devSqlDir)) match {
+        Try(BAHelper.copySqls(baSqlDir, devSqlDir, rmDevSqlDir)) match {
           case scala.util.Success(descs) =>
             val desc = descs.map { case (source, target) => s"• $source -> $target" }
             log.info(s"""Copied BA sql to DEV:\n${desc.mkString("\n")}""").success[ConfigError]

@@ -37,6 +37,6 @@ object SparkParser {
     }
 
   case class QfDep(dep: String, prefix: Option[String] = None) {
-    def qfStr: String = prefix.map(dbId => s"${dbId.toLowerCase}.${dep.toLowerCase}").getOrElse(dep.toLowerCase)
+    def qfStr: String = prefix.map(dbId => s"$dbId.$dep").getOrElse(dep)
   }
 }

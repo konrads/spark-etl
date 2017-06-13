@@ -5,11 +5,13 @@ import java.io.{File, PrintWriter}
 import scala.io.Source
 
 object BAHelper {
-  def copySqls(sourceDir: File, targetDir: File): Seq[(String, String)] = {
-    rmdir(targetDir)
+  def copySqls(sourceDir: File, targetDir: File, rmTargetDir: Boolean): Seq[(String, String)] = {
+    if (rmTargetDir)
+      rmdir(targetDir)
     val sqlFiles = descendants(sourceDir).filter(_.getName.toLowerCase.endsWith(".sql"))
     sqlFiles.map {
       f =>
+        val fPerms = java.nio.file.Files.getPosixFilePermissions(f.toPath)
         val contents = Source.fromFile(f).mkString
         val target = new File(targetDir, f.getAbsolutePath.replace(sourceDir.getAbsolutePath, ""))
         val targetParent = target.getParentFile
@@ -19,6 +21,7 @@ object BAHelper {
           write(stripped)
           close()
         }
+        java.nio.file.Files.setPosixFilePermissions(target.toPath, fPerms)
         (f.getPath, target.getPath)
     }
   }
