@@ -15,9 +15,8 @@ object BAHelper {
         val targetParent = target.getParentFile
         targetParent.mkdirs()
         new PrintWriter(target) {
-          // FIXME: transform
-          val contents2 = "-- dev version\n" + contents
-          write(contents2)
+          val stripped = SparkParser.stripDbs(contents)
+          write(stripped)
           close()
         }
         (f.getPath, target.getPath)

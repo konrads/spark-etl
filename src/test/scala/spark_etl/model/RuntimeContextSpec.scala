@@ -115,30 +115,30 @@ class RuntimeContextSpec extends FlatSpec with Matchers with Inside {
   it should "fail on duplicates" in {
     val confStr =
       """
-      |extracts:
-      |  - name:  client
-      |    uri:   "data/dev/client_2017"
-      |    check: "/runtime-ctx/spark/extract-check/client.sql"
-      |  - name:  client
-      |    uri:   "data/dev/client_2017"
-      |    check: "/runtime-ctx/spark/extract-check/client.sql"
-      |
-      |transforms:
-      |  - name:  client_spending
-      |    check: "/runtime-ctx/spark/transform-check/client_spending.sql"
-      |    sql:   "/runtime-ctx/spark/transform/client_all.sql"
-      |  - name:  client_spending
-      |    check: "/runtime-ctx/spark/transform-check/client_spending.sql"
-      |    sql:   "/runtime-ctx/spark/transform/client_all.sql"
-      |
-      |loads:
-      |  - name:   client_spending_out
-      |    source: client_spending
-      |    uri:    "/tmp/out/client_spending"
-      |  - name:   client_spending_out
-      |    source: client_spending
-      |    uri:    "/tmp/out/client_spending"
-      |""".stripMargin
+        |extracts:
+        |  - name:  client
+        |    uri:   "data/dev/client_2017"
+        |    check: "/runtime-ctx/spark/extract-check/client.sql"
+        |  - name:  client
+        |    uri:   "data/dev/client_2017"
+        |    check: "/runtime-ctx/spark/extract-check/client.sql"
+        |
+        |transforms:
+        |  - name:  client_spending
+        |    check: "/runtime-ctx/spark/transform-check/client_spending.sql"
+        |    sql:   "/runtime-ctx/spark/transform/client_all.sql"
+        |  - name:  client_spending
+        |    check: "/runtime-ctx/spark/transform-check/client_spending.sql"
+        |    sql:   "/runtime-ctx/spark/transform/client_all.sql"
+        |
+        |loads:
+        |  - name:   client_spending_out
+        |    source: client_spending
+        |    uri:    "/tmp/out/client_spending"
+        |  - name:   client_spending_out
+        |    source: client_spending
+        |    uri:    "/tmp/out/client_spending"
+        |""".stripMargin
 
     Config.parse(confStr) match {
       case Success(conf) =>
@@ -158,39 +158,39 @@ class RuntimeContextSpec extends FlatSpec with Matchers with Inside {
           case Success(ctx) =>
             val v = ctx.asDot
             ctx.asDot shouldBe
-            """digraph Lineage {
-              |  rankdir=LR
-              |  node [fontsize=12]
-              |
-              |  # vertices
-              |  client
-              |  item
-              |  transaction
-              |  client_spending [shape=component]
-              |  item_purchase [shape=component]
-              |  minor_purchase [shape=component]
-              |  client_spending_out [shape=cylinder]
-              |  item_purchase_out [shape=cylinder]
-              |  minor_purchase_out [shape=cylinder]
-              |
-              |  # edges
-              |  item -> client_spending [style=dotted]
-              |  transaction -> client_spending [style=dotted]
-              |  client -> client_spending [style=dotted]
-              |  item -> item_purchase [style=dotted]
-              |  transaction -> item_purchase [style=dotted]
-              |  client -> item_purchase [style=dotted]
-              |  item -> minor_purchase [style=dotted]
-              |  transaction -> minor_purchase [style=dotted]
-              |  client -> minor_purchase [style=dotted]
-              |  client_spending -> client_spending_out
-              |  item_purchase -> item_purchase_out
-              |  minor_purchase -> minor_purchase_out
-              |
-              |  # ranks
-              |  { rank=same; client item transaction }
-              |  { rank=same; client_spending_out item_purchase_out minor_purchase_out }
-              |}""".stripMargin
+              """digraph Lineage {
+                |  rankdir=LR
+                |  node [fontsize=12]
+                |
+                |  # vertices
+                |  client
+                |  item
+                |  transaction
+                |  client_spending [shape=component]
+                |  item_purchase [shape=component]
+                |  minor_purchase [shape=component]
+                |  client_spending_out [shape=cylinder]
+                |  item_purchase_out [shape=cylinder]
+                |  minor_purchase_out [shape=cylinder]
+                |
+                |  # edges
+                |  item -> client_spending [style=dotted]
+                |  transaction -> client_spending [style=dotted]
+                |  client -> client_spending [style=dotted]
+                |  item -> item_purchase [style=dotted]
+                |  transaction -> item_purchase [style=dotted]
+                |  client -> item_purchase [style=dotted]
+                |  item -> minor_purchase [style=dotted]
+                |  transaction -> minor_purchase [style=dotted]
+                |  client -> minor_purchase [style=dotted]
+                |  client_spending -> client_spending_out
+                |  item_purchase -> item_purchase_out
+                |  minor_purchase -> minor_purchase_out
+                |
+                |  # ranks
+                |  { rank=same; client item transaction }
+                |  { rank=same; client_spending_out item_purchase_out minor_purchase_out }
+                |}""".stripMargin
         }
     }
 

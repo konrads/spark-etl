@@ -2,9 +2,8 @@ package spark_etl.model
 
 import net.jcazevedo.moultingyaml._
 import org.apache.spark.sql.catalyst.parser._
-import spark_etl.parser.Parser
 import spark_etl.util.Validation._
-import spark_etl.util.{Validation, _}
+import spark_etl.util._
 import spark_etl.{ConfigError, ExtractReader, LoadWriter}
 
 import scala.util.{Failure, Success, Try}
@@ -135,10 +134,15 @@ object RuntimeContext extends DefaultYamlProtocol {
     }
 
   private def validateResolvedDsos(depTree: DepTree, name: String, `type`: VertexType, errMsgPrefix: String)(contents: String): Validation[ConfigError, String] =
-    Try(Parser.getDsos(contents)) match {
+    Try(SparkParser.getDeps(contents)) match {
       case Success(usedDsos) =>
-        usedDsos.map(_.toLowerCase).foreach(d => depTree.addEdge(d, Vertex(name, `type`)))
-        contents.success[ConfigError]
+        val withPrefixes = usedDsos.filter(_.prefix.isDefined)
+        if (withPrefixes.nonEmpty)
+          ConfigError(s"$errMsgPrefix: contains prefixed dsos: ${withPrefixes.map(_.qfStr).mkString(", ")}").failure[String]
+        else {
+          usedDsos.map(_.qfStr).foreach(d => depTree.addEdge(d, Vertex(name, `type`)))
+          contents.success[ConfigError]
+        }
       case Failure(e: ParseException) =>
         ConfigError(s"$errMsgPrefix: failed to parse, error: ${e.getMessage}").failure[String]
       case Failure(e) =>

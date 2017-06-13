@@ -10,6 +10,8 @@ coverageMinimum := 60
 
 coverageFailOnMinimum := true
 
+parallelExecution in Test := false
+
 libraryDependencies ++= {
   lazy val sparkVsn     = "2.1.0"
   lazy val scalaTestVsn = "3.0.3"
@@ -20,7 +22,8 @@ libraryDependencies ++= {
     "net.jcazevedo"    %% "moultingyaml" % "0.4.0",
     "org.rogach"       %% "scallop"      % "2.0.2",
 
-    // testing
-    "org.scalatest"    %% "scalatest"    % scalaTestVsn % "test"
+    // test
+    "org.scalatest"    %% "scalatest"    % scalaTestVsn % "test",
+    "com.h2database"   %  "h2"           % "1.4.196"    % "test"
   )
 }

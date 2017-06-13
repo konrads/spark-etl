@@ -23,6 +23,8 @@ trait Validation[Err, S] {
     case Failure(ls) => Failure(ls)
   }
 
+  def isSuccess: Boolean
+
   protected def errs: Seq[Err]
 }
 
@@ -172,8 +174,14 @@ object Validation {
     }
 }
 
-case class Failure[Err, R](errs: Seq[Err]) extends Validation[Err, R]
-case class Success[Err, R](r: R) extends Validation[Err, R] { protected def errs = Nil }
+case class Failure[Err, R](errs: Seq[Err]) extends Validation[Err, R] {
+  override def isSuccess: Boolean = false
+}
+
+case class Success[Err, R](r: R) extends Validation[Err, R] {
+  override def isSuccess: Boolean = true
+  protected def errs = Nil
+}
 
 trait ValidationMerger[In1, In2, Out] {
   def merge(in1: In1, in2: In2): Out

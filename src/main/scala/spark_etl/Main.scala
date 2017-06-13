@@ -46,12 +46,14 @@ object Main {
     verify()
   }
 
+  type ErrorHandler = List[ConfigError] => Unit
+
   def main(args: Array[String]): Unit = {
     val conf = new CliConf(args)
     main(conf.command(), conf.confUri(), conf.extraProps, conf.count(), conf.lineageFile(), conf.baSqlDir(), conf.devSqlDir())
   }
 
-  def main(command: CliCommand, confUri: String, extraProps: Map[String, String], shouldCount: Boolean, lineageFile: String, baSqlDir: File, devSqlDir: File): Unit = {
+  def main(command: CliCommand, confUri: String, extraProps: Map[String, String], shouldCount: Boolean, lineageFile: String, baSqlDir: File, devSqlDir: File, errorHandler: ErrorHandler = die): Unit = {
     def createSpark(name: String, props: Map[String, String], isMaster: Boolean): SparkSession = {
       val builder = if (isMaster)
           SparkSession.builder.appName(name).master("local[1]").config("spark.ui.port", random(4041, 4999)).config("spark.history.ui.port", random(18080, 19000))
@@ -113,9 +115,12 @@ object Main {
       case Failure(errors) =>
         val errorStr = errors.map(e => e.exc.map(exc => s"• ${e.msg}, exception: $exc\n${stacktrace(exc)}").getOrElse(s"• ${e.msg}")).toList.mkString("\n")
         log.error(s"Failed due to:\n$errorStr")
-        System.exit(1)
+        errorHandler(errors.toList)
     }
   }
+
+  private def die(errors: List[ConfigError]): Unit =
+    System.exit(1)
 
   private def stacktrace(t: Throwable) = {
     val w = new StringWriter
