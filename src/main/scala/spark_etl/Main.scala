@@ -4,8 +4,9 @@ import java.io.{File, PrintWriter, StringWriter}
 
 import org.apache.log4j.Logger
 import org.apache.spark.sql._
+import org.joda.time.DateTime
 import org.rogach.scallop._
-import spark_etl.util.{Failure, Files, Success}
+import spark_etl.util.{DefaultEnv, Failure, Files, Success}
 
 import scala.util.Random
 
@@ -65,7 +66,9 @@ object Main {
     }
 
     val pwd = Files.pwd
-    val env = extraProps.collect { case (k, v) if k.startsWith("env.") => k.substring("env.".length) -> v }
+    val defaultEnv = DefaultEnv.getAll(DateTime.now)
+    val paramEnv = extraProps.collect { case (k, v) if k.startsWith("env.") => k.substring("env.".length) -> v }
+    val env = defaultEnv ++ paramEnv
     val res = command match {
       case LineageDot =>
         MainUtils.dotLineage(confUri, pwd, env, lineageFile)
