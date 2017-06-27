@@ -14,8 +14,8 @@ object DefaultEnv {
   def getAll(date: DateTime, prefix: String = ""): Map[String, String] = {
     val `t-1` = date.minusDays(1)
     val `utc-1` = date.withZone(DateTimeZone.UTC).minusDays(1)
-    get(`t-1`, prefix, "-1") ++
-      get(`utc-1`, prefix + "utc-", "-1")
+    get(`t-1`, prefix, "-1d") ++
+      get(`utc-1`, prefix + "utc-", "-1d")
 
   }
 
