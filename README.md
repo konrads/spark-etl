@@ -13,7 +13,7 @@ This library facilitates productionizing of configuration/SQL driven Spark ETL p
 * run time validations comprising verification of data source (`extract`s) uris and connectivity to [LoadWriter](src/main/scala/spark_etl/LoadWriter.scala)
 * optional validation of `extract` datasources
 * optional validation of `transform` outputs (pre `load` writing)
-* config and SQL parametrization via `${var}` style variables, configured ar runtime via `-Denv.var=value`. Some default envs (eg. `${yyyy-MM-dd-1d`, `${utc-eod-1d}`}) are supplied by [DefaultEnv](src/main/scala/spark_etl/util/DefaultEnv.scala)
+* config and SQL parametrization via `${var}` style variables, configured at runtime via `-Denv.var=value`. Some default envs (eg. `${yyyy-MM-dd-1d}`, `${utc-eod-1d}`) are supplied by [DefaultEnv](src/main/scala/spark_etl/util/DefaultEnv.scala)
 * CLI support for commands: `validate-local`, `validate-remote`, `extract-check`, `transform-load`, `transform-load`
 
 Sample setup

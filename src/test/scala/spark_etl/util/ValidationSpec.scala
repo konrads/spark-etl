@@ -93,4 +93,24 @@ class ValidationSpec extends FlatSpec with Matchers with Inside {
       x2 <- 22.success[String]
     } yield x1 + x2) shouldBe Failure(List("err"))
   }
+
+  it should "foldl" in {
+    11.success[Double].foldl(
+      {
+        _ => false
+      },
+      {
+        _ => true
+      }
+    ) shouldBe true
+
+    (-99.5).failure[Int].foldl(
+      {
+        _ => false
+      },
+      {
+        _ => true
+      }
+    ) shouldBe false
+  }
 }

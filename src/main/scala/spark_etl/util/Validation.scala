@@ -23,6 +23,11 @@ trait Validation[Err, S] {
     case Failure(ls) => Failure(ls)
   }
 
+  def foldl[Out](failure: Seq[Err] => Out, success: S => Out): Out = this match {
+    case Failure(err) => failure(err)
+    case Success(s)   => success(s)
+  }
+
   def isSuccess: Boolean
 
   protected def errs: Seq[Err]
