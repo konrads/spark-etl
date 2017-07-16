@@ -20,7 +20,7 @@ class WriteReadRoundtripSpec extends FlatSpec with Matchers with Inside {
     testRoundtrip(Some(List("s")))
   }
 
-  "Main" should "transform" in {
+  "CLI" should "transform" in {
     // cleanup dir if exists
     FileUtils.deleteDirectory(new File(s"$root/parquet-roundtrip/x"))
 

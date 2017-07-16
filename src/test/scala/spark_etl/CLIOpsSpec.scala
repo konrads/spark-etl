@@ -6,11 +6,11 @@ import spark_etl.util._
 class CLIOpsSpec extends FlatSpec with Matchers with Inside {
   val root = Files.rootResource
 
-  "Main" should "validate-local complex file specs" in {
+  "CLI" should "validate-local complex file specs" in {
     CLI.main(Array("-Denv.engine=spark", "-Denv.length_fun=length", "-Denv.count_fun=count", "-Denv.join_type=LEFT OUTER JOIN", s"--conf-uri=file:$root/main-utils/config/app.yaml", "validate-local"))
   }
 
-  "MainUtils" should "validate-local complex file specs" in {
+  "CLIOps" should "validate-local complex file specs" in {
     val envVars = Map("engine" -> "spark", "length_fun" -> "length", "count_fun" -> "count", "join_type" -> "LEFT OUTER JOIN")
     CLIOps.validateLocal("file:main-utils/config/app.yaml", root, envVars) shouldBe Success(())
   }
