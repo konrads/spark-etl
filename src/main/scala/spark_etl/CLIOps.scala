@@ -10,7 +10,7 @@ import spark_etl.util.Validation._
 
 import scala.util.Try
 
-object MainUtils {
+object CLIOps {
   val log = Logger.getLogger(getClass)
 
   def dotLineage(confUri: String, filePathRoot: String, env: Map[String, String], filename: String): Validation[ConfigError, Unit] =
@@ -224,7 +224,7 @@ object MainUtils {
   def stripPrefixes(srcDir: File, targetDir: File, rmTargetDir: Boolean): Validation[ConfigError, Unit] =
     Try(BAHelper.copySqls(srcDir, targetDir, rmTargetDir)) match {
       case scala.util.Success(descs) =>
-        log.info(s"""Copied BA sql to DEV:\n${MainUtils.toBullets(descs)}""").success[ConfigError]
+        log.info(s"""Copied BA sql to DEV:\n${CLIOps.toBullets(descs)}""").success[ConfigError]
       case scala.util.Failure(e) =>
         ConfigError(s"Failed to copy SQL from $srcDir to $targetDir", Some(e)).failure[Unit]
     }

@@ -10,7 +10,7 @@ import spark_etl.util.{DefaultEnv, Failure, Files, Success}
 
 import scala.util.Random
 
-object Main {
+object CLI {
   val log = Logger.getLogger(getClass)
 
   sealed trait CliCommand
@@ -71,39 +71,39 @@ object Main {
     val env = defaultEnv ++ paramEnv
     val res = command match {
       case LineageDot =>
-        MainUtils.dotLineage(confUri, pwd, env, lineageFile)
+        CLIOps.dotLineage(confUri, pwd, env, lineageFile)
       case ValidateLocal =>
-        MainUtils.validateLocal(confUri, pwd, env)
+        CLIOps.validateLocal(confUri, pwd, env)
       case ValidateRemote =>
         implicit val spark = createSpark(className, extraProps, true)
         try {
-          MainUtils.validateRemote(confUri, pwd, env)
+          CLIOps.validateRemote(confUri, pwd, env)
         } finally {
           spark.stop()
         }
       case TransformLoad =>
         implicit val spark = createSpark(className, extraProps, false)
         try {
-          MainUtils.transformAndLoad(confUri, pwd, env, extraProps, shouldCount)
+          CLIOps.transformAndLoad(confUri, pwd, env, extraProps, shouldCount)
         } finally {
           spark.stop()
         }
       case ExtractCheck =>
         implicit val spark = createSpark(className, extraProps, false)
         try {
-          MainUtils.extractCheck(confUri, pwd, env)
+          CLIOps.extractCheck(confUri, pwd, env)
         } finally {
           spark.stop()
         }
       case TransformCheck =>
         implicit val spark = createSpark(className, extraProps, false)
         try {
-          MainUtils.transformCheck(confUri, pwd, env, shouldCount)
+          CLIOps.transformCheck(confUri, pwd, env, shouldCount)
         } finally {
           spark.stop()
         }
       case StripPrefixes =>
-        MainUtils.stripPrefixes(baSqlDir, devSqlDir, rmDevSqlDir)
+        CLIOps.stripPrefixes(baSqlDir, devSqlDir, rmDevSqlDir)
     }
 
     res match {

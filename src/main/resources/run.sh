@@ -2,7 +2,7 @@
 
 # configurable env vars
 RUN_DIR=${RUN_DIR:-.}
-MAIN_CLASS=${MAIN_CLASS:-spark_etl.Main}
+MAIN_CLASS=${MAIN_CLASS:-spark_etl.CLI}
 HADOOP_VSN=${HADOOP_VSN:-2.7.3}
 SPARK_JARS=${SPARK_JARS:-/opt/spark/spark-2.1.0-bin-hadoop2.7/jars}
 HADOOP_CONF_DIR=${HADOOP_CONF_DIR:-/etc/hadoop/conf}

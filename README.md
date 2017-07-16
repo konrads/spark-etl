@@ -85,12 +85,12 @@ src -+
 
 Generate lineage in dot format:
 ```
-sbt "run-main spark_etl.Main -Denv.path=some_path lineage-dot"
+sbt "run-main spark_etl.CLI -Denv.path=some_path lineage-dot"
 ```
 
 Validate local config/SQLs. Suggested use is to run this as part of the build, with validation failure stopping the build:
 ```
-sbt "run-main spark_etl.Main -Denv.path=some_path validate-local"
+sbt "run-main spark_etl.CLI -Denv.path=some_path validate-local"
 ```
 
 Deploy to cluster, with read access to `hdfs://some_path`, write access to `hdfs://out`. If using yarn, utilize: [run.sh](src/main/resources/run.sh)

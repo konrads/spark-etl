@@ -5,7 +5,7 @@ import java.io.File
 import org.apache.commons.io.FileUtils
 import org.apache.spark.sql.SparkSession
 import org.scalatest.{FlatSpec, Inside, Matchers}
-import spark_etl.Main
+import spark_etl.CLI
 import spark_etl.model.{Extract, Load}
 import spark_etl.util.Files
 
@@ -40,7 +40,7 @@ class WriteReadRoundtripSpec extends FlatSpec with Matchers with Inside {
       spark.stop
     }
 
-    Main.main(Array(s"-Denv.path=$root/parquet-roundtrip", "--conf-uri", s"/parquet-roundtrip/app.yaml", "validate-remote"))
+    CLI.main(Array(s"-Denv.path=$root/parquet-roundtrip", "--conf-uri", s"/parquet-roundtrip/app.yaml", "validate-remote"))
   }
 
   private def testRoundtrip(partitionBy: Option[List[String]]) = {
