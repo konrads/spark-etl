@@ -1,7 +1,7 @@
 spark-etl
 ==========
 
-Tooling for configuration and SQL transform driven Spark ETLs.
+Tooling for configuration and SQL transform driven Spark ETLs. For usage example, see [spark-etl-demo](https://github.com/konrads/spark-etl-demo).
 
 Build status (master): [![Build Status](https://travis-ci.org/konrads/spark-etl.svg?branch=master)](https://travis-ci.org/konrads/spark-etl)
 
